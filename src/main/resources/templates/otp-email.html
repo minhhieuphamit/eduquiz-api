@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+</head>
+<body>
+<!-- TODO: Design email template đẹp -->
+<h2>EduQuiz - Xác thực email</h2>
+<p>Xin chào <span th:text="${fullName}">User</span>,</p>
+<p>Mã OTP của bạn là: <strong th:text="${otpCode}">123456</strong></p>
+<p>Mã có hiệu lực trong 5 phút.</p>
+</body>
+</html>

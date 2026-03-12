@@ -1,0 +1,35 @@
+# ══════════════════════════════════════════════════════
+# EduQuiz - Docker Compose (Local Development)
+# ══════════════════════════════════════════════════════
+# Sử dụng: docker-compose up -d
+# Dừng:    docker-compose down
+
+version: '3.8'
+
+services:
+
+  # ── PostgreSQL ──
+  postgres:
+    image: postgres:16-alpine
+    container_name: eduquiz-postgres
+    environment:
+      POSTGRES_DB: eduquiz
+      POSTGRES_USER: eduquiz
+      POSTGRES_PASSWORD: eduquiz
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  # ── Kafka + Zookeeper ──
+  # TODO: Thêm ở Phase 4
+  # zookeeper:
+  #   image: confluentinc/cp-zookeeper:7.5.0
+  # kafka:
+  #   image: confluentinc/cp-kafka:7.5.0
+
+  # ── ELK + Grafana ──
+  # TODO: Thêm ở Phase 7
+
+volumes:
+  postgres-data:
