@@ -5,6 +5,7 @@ import com.eduquiz.feature.auth.dto.*;
 import com.eduquiz.feature.auth.entity.User;
 import com.eduquiz.feature.auth.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -53,13 +54,13 @@ public class AuthController {
 
     @PostMapping("/logout")
     @Operation(summary = "Đăng xuất (thu hồi tất cả refresh token)")
-    public ResponseEntity<ApiResponse<Void>> logout(@AuthenticationPrincipal User user) {
+    public ResponseEntity<ApiResponse<Void>> logout(@Parameter(hidden = true) @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(authService.logout(user));
     }
 
     @GetMapping("/me")
     @Operation(summary = "Lấy thông tin user hiện tại")
-    public ResponseEntity<ApiResponse<UserInfoResponse>> getCurrentUser(@AuthenticationPrincipal User user) {
+    public ResponseEntity<ApiResponse<UserInfoResponse>> getCurrentUser(@Parameter(hidden = true) @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(authService.getCurrentUser(user));
     }
 }
