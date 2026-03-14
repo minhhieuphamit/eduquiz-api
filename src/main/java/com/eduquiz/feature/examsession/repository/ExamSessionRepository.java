@@ -1,11 +1,13 @@
 package com.eduquiz.feature.examsession.repository;
 
-/**
- * JpaRepository<ExamSession, Long>
- * - findByUserIdOrderByStartedAtDesc(userId) → List (lịch sử)
- * - findByRoomId(roomId) → List (kết quả phòng thi)
- * - findByUserIdAndRoomIdAndStatus(userId, roomId, IN_PROGRESS) → Optional
- * TODO: Implement
- */
-public interface ExamSessionRepository {
+import com.eduquiz.feature.examsession.entity.ExamSession;
+import com.eduquiz.feature.auth.entity.User;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+import java.util.List;
+import java.util.UUID;
+
+@Repository
+public interface ExamSessionRepository extends JpaRepository<ExamSession, UUID> {
+    List<ExamSession> findByUserOrderByCreatedAtDesc(User user);
 }
