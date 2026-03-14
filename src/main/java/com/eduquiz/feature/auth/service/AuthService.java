@@ -65,6 +65,9 @@ public class AuthService {
     @Value("${jwt.refresh-token-expiration}")
     private long refreshTokenExpirationMs;
 
+    @Value("${app.frontend-url}")
+    private String frontendUrl;
+
     // ══════════════════════════════════════════════════════
     // REGISTER
     // ══════════════════════════════════════════════════════
@@ -272,9 +275,14 @@ public class AuthService {
         // Generate new access token
         String newAccessToken = jwtUtil.generateToken(user);
 
+        // Rotate refresh token: revoke old, create new
+        refreshToken.setRevoked(true);
+        refreshTokenRepository.save(refreshToken);
+        String newRefreshToken = createRefreshToken(user);
+
         AuthResponse authResponse = AuthResponse.builder()
                 .accessToken(newAccessToken)
-                .refreshToken(refreshToken.getToken()) // giữ nguyên refresh token
+                .refreshToken(newRefreshToken)
                 .expiresIn(jwtUtil.getAccessTokenExpirationSeconds())
                 .build();
 
@@ -429,11 +437,10 @@ public class AuthService {
                 .build();
         emailVerificationRepository.save(verification);
 
-        // Construct full URL with OTP appended for auto-fill in frontend
-        String separator = verifyPath.contains("?") ? "&" : "?";
-        String fullUrl = "http://localhost:3000" + verifyPath + separator + "otp=" + otp;
+        // Construct verification URL (OTP NOT included in URL for security)
+        String fullUrl = frontendUrl + verifyPath;
 
-        // Send email
+        // Send email (OTP is displayed in the email body only)
         emailService.sendOtpEmail(user.getEmail(), subject, title, otp, user.getFullName(), fullUrl);
     }
 
