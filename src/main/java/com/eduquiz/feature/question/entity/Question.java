@@ -1,15 +1,51 @@
 package com.eduquiz.feature.question.entity;
 
-/**
- * @Entity questions
- * Fields: id, chapter(@ManyToOne), content(TEXT - có thể chứa LaTeX),
- * optionA, optionB, optionC, optionD (TEXT - có thể chứa LaTeX),
- * correctAnswer(CHAR: A/B/C/D), difficulty(enum: EASY/MEDIUM/HARD),
- * explanation(TEXT - có thể chứa LaTeX)
- * <p>
- * Lưu ý: LaTeX được lưu dạng plain text ($x^2$, $$\int_0^1$$)
- * Frontend (KaTeX) sẽ render thành công thức đẹp
- * TODO: Implement @Entity @Data
- */
+import com.eduquiz.feature.chapter.entity.Chapter;
+import jakarta.persistence.*;
+import lombok.*;
+import org.hibernate.annotations.UuidGenerator;
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+@Entity
+@Table(name = "questions")
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Question {
+    @Id
+    @UuidGenerator
+    private UUID id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "chapter_id", nullable = false)
+    private Chapter chapter;
+
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String content;
+
+    @Column(nullable = false)
+    private String type;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Difficulty difficulty;
+
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 }
