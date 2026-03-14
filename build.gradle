@@ -53,7 +53,6 @@ dependencies {
 
     // ── Swagger / OpenAPI ──
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.16'
-    // Fix CVE-2025-48924: override transitive commons-lang3
     implementation 'org.apache.commons:commons-lang3:3.18.0'
 
     // ── ELK logging (Phase 7) ──

@@ -1,5 +1,7 @@
 package com.eduquiz.security;
 
+import com.eduquiz.security.filter.ApiKeyFilter;
+import com.eduquiz.security.filter.TraceFilter;
 import com.eduquiz.security.jwt.JwtAuthFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -25,7 +27,9 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
-    private final CustomUserDetailsService userDetailsService; // ← tách riêng, không còn circular
+    private final TraceFilter traceFilter;
+    private final ApiKeyFilter apiKeyFilter;
+    private final CustomUserDetailsService userDetailsService;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -40,7 +44,9 @@ public class SecurityConfig {
                                 "/api/v1/auth/login",
                                 "/api/v1/auth/verify-otp",
                                 "/api/v1/auth/resend-otp",
-                                "/api/v1/auth/refresh"
+                                "/api/v1/auth/refresh",
+                                "/api/v1/auth/forgot-password",
+                                "/api/v1/auth/reset-password"
                         ).permitAll()
                         // Swagger & System
                         .requestMatchers(
@@ -54,6 +60,8 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())
+                .addFilterBefore(traceFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(apiKeyFilter, TraceFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
