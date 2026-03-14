@@ -1,13 +1,163 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" lang="vi">
 <head>
     <meta charset="UTF-8">
+    <title>Xác thực EduQuiz</title>
 </head>
-<body>
-<!-- TODO: Design email template đẹp -->
-<h2>EduQuiz - Xác thực email</h2>
-<p>Xin chào <span th:text="${fullName}">User</span>,</p>
-<p>Mã OTP của bạn là: <strong th:text="${otpCode}">123456</strong></p>
-<p>Mã có hiệu lực trong 5 phút.</p>
+
+<body style="margin:0;background:#f3f6f9;font-family:Arial,Helvetica,sans-serif">
+
+<table width="100%" cellpadding="0" cellspacing="0">
+    <tr>
+        <td align="center">
+
+            <table width="720" style="background:#ffffff;border-radius:16px;overflow:hidden">
+
+                <!-- HEADER -->
+                <tr>
+                    <td style="background:linear-gradient(90deg,#2a78c8,#2fb7a8);padding:25px">
+
+                        <table width="100%">
+                            <tr>
+
+                                <td>
+                                    <div style="font-size:34px;font-weight:bold;color:white">
+                                        EduQuiz
+                                    </div>
+
+                                    <div style="color:#e8f5ff;font-size:16px">
+                                        Chinh Phục Kỳ Thi THPT QG
+                                    </div>
+                                </td>
+
+                                <td align="right" style="font-size:46px">
+                                    🎓
+                                </td>
+
+                            </tr>
+                        </table>
+
+                    </td>
+                </tr>
+
+                <!-- CONTENT -->
+                <tr>
+                    <td style="padding:30px;background:#f6f8fa">
+
+                        <table width="100%" style="background:white;border-radius:14px;border:1px solid #e1e6ea">
+                            <tr>
+                                <td style="padding:35px">
+
+                                    <div style="text-align:center;font-size:26px;font-weight:bold;margin-bottom:25px" th:text="${title}">
+                                        Mã Xác Minh Đăng Ký Tài Khoản EduQuiz
+                                    </div>
+
+                                    <p style="font-size:18px">
+                                        Chào bạn <b th:text="${fullName}">Tên người dùng</b>,
+                                    </p>
+
+                                    <p style="font-size:18px">
+                                        Chúc mừng bạn đã đến với <b>EduQuiz</b>! Đây là mã xác minh của bạn:
+                                    </p>
+
+                                    <!-- OTP -->
+                                    <div align="center" style="margin:30px 0">
+
+                                        <div style="
+display:inline-block;
+padding:18px 40px;
+border:3px solid #3fb2b6;
+border-radius:12px;
+background:#ecfbff;
+font-size:56px;
+font-weight:bold;
+letter-spacing:16px;
+">
+
+                                            <span th:text="${otpCode}">820715</span>
+
+                                        </div>
+
+                                    </div>
+
+                                    <div style="text-align:center;font-size:18px;margin-bottom:25px">
+                                        Mã này có hiệu lực trong <b>5 phút</b> ⏰
+                                    </div>
+
+                                    <!-- BUTTON -->
+                                    <div align="center">
+
+                                        <a th:href="${verifyUrl}"
+                                           style="
+background:#4b87c5;
+color:white;
+text-decoration:none;
+padding:14px 35px;
+border-radius:25px;
+font-size:18px;
+font-weight:bold;
+display:inline-block">
+
+                                            Nhập mã để tiếp tục
+
+                                        </a>
+
+                                    </div>
+
+                                    <p style="text-align:center;margin-top:30px;font-size:16px;color:#333">
+                                        Vui lòng không chia sẻ mã này với bất kỳ ai để bảo mật tài khoản.<br>
+                                        Nếu bạn không thực hiện yêu cầu này, hãy bỏ qua email.
+                                    </p>
+
+                                </td>
+                            </tr>
+                        </table>
+
+                    </td>
+                </tr>
+
+                <!-- FOOTER -->
+                <tr>
+                    <td style="background:linear-gradient(90deg,#2a78c8,#2fb7a8);padding:30px;color:white">
+
+                        <table width="100%">
+
+                            <tr>
+
+                                <td>
+
+                                    <div style="font-size:22px;font-weight:bold;margin-bottom:8px">
+                                        EduQuiz
+                                    </div>
+
+                                    <div style="margin-bottom:10px">
+                                        Trang chủ | Tài liệu | Hỗ trợ | Điều khoản | Chính sách bảo mật
+                                    </div>
+
+                                    <div style="font-size:14px">
+                                        Email: support@eduquiz.vn |
+                                        Hotline: 1800 xxxx |
+                                        Địa chỉ: Tòa nhà FPT, Khu Công nghệ cao HCMC
+                                    </div>
+
+                                </td>
+
+                                <td align="right" style="font-size:40px">
+                                    📚
+                                </td>
+
+                            </tr>
+
+                        </table>
+
+                    </td>
+                </tr>
+
+            </table>
+
+        </td>
+    </tr>
+</table>
+
 </body>
 </html>

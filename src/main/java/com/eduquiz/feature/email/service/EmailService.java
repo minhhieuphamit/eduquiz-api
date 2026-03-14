@@ -21,12 +21,14 @@ public class EmailService {
     /**
      * Gửi email HTML chứa mã OTP sử dụng Thymeleaf template.
      */
-    public void sendOtpEmail(String toEmail, String otpCode, String fullName) {
+    public void sendOtpEmail(String toEmail, String subject, String title, String otpCode, String fullName, String verifyUrl) {
         try {
             // Prepare Thymeleaf context
             Context context = new Context();
             context.setVariable("fullName", fullName);
+            context.setVariable("title", title);
             context.setVariable("otpCode", otpCode);
+            context.setVariable("verifyUrl", verifyUrl);
 
             String htmlContent = templateEngine.process("otp-email", context);
 
@@ -34,7 +36,7 @@ public class EmailService {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
             helper.setTo(toEmail);
-            helper.setSubject("EduQuiz - Mã xác thực OTP");
+            helper.setSubject(subject);
             helper.setText(htmlContent, true);
 
             mailSender.send(message);

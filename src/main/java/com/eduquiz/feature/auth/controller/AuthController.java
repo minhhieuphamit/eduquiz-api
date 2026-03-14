@@ -63,4 +63,43 @@ public class AuthController {
     public ResponseEntity<ApiResponse<UserInfoResponse>> getCurrentUser(@Parameter(hidden = true) @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(authService.getCurrentUser(user));
     }
+
+    @PostMapping("/forgot-password")
+    @Operation(summary = "Yêu cầu đặt lại mật khẩu (quên mật khẩu)")
+    public ResponseEntity<ApiResponse<Void>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        return ResponseEntity.ok(authService.forgotPassword(request));
+    }
+
+    @PostMapping("/reset-password")
+    @Operation(summary = "Xác nhận đặt lại mật khẩu mới")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        return ResponseEntity.ok(authService.resetPassword(request));
+    }
+
+    @PostMapping("/password-change/request")
+    @Operation(summary = "Yêu cầu thay đổi mật khẩu (khi đã đăng nhập)")
+    public ResponseEntity<ApiResponse<Void>> requestPasswordChange(
+            @Parameter(hidden = true) @AuthenticationPrincipal User user,
+            @Valid @RequestBody ChangePasswordInitRequest request
+    ) {
+        return ResponseEntity.ok(authService.requestPasswordChange(user, request));
+    }
+
+    @PostMapping("/password-change/confirm")
+    @Operation(summary = "Xác nhận thay đổi mật khẩu (khi đã đăng nhập)")
+    public ResponseEntity<ApiResponse<Void>> changePassword(
+            @Parameter(hidden = true) @AuthenticationPrincipal User user,
+            @Valid @RequestBody ChangePasswordRequest request
+    ) {
+        return ResponseEntity.ok(authService.changePassword(user, request));
+    }
+
+    @PatchMapping("/profile")
+    @Operation(summary = "Cập nhật thông tin cá nhân")
+    public ResponseEntity<ApiResponse<UserInfoResponse>> updateProfile(
+            @Parameter(hidden = true) @AuthenticationPrincipal User user,
+            @Valid @RequestBody UpdateProfileRequest request
+    ) {
+        return ResponseEntity.ok(authService.updateProfile(user, request));
+    }
 }

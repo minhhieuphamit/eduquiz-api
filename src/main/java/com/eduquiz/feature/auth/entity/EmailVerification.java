@@ -2,20 +2,23 @@ package com.eduquiz.feature.auth.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.UuidGenerator;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "email_verifications")
-@Data
-@Builder
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class EmailVerification {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @UuidGenerator
+    private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -27,13 +30,30 @@ public class EmailVerification {
     @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
 
-    @Builder.Default
-    private Boolean verified = false;
+    @Column
+    private Boolean verified;
 
-    @Builder.Default
-    private Integer attempts = 0;
+    @Column
+    private Integer attempts;
+
+    @Column(name = "new_password")
+    private String newPassword;
 
     @Column(name = "created_at")
-    @Builder.Default
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private LocalDateTime createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        if (verified == null) verified = false;
+        if (attempts == null) attempts = 0;
+    }
+
+    public boolean isExpired() {
+        return LocalDateTime.now().isAfter(expiresAt);
+    }
+
+    public boolean isMaxAttemptsReached(int maxAttempts) {
+        return attempts >= maxAttempts;
+    }
 }

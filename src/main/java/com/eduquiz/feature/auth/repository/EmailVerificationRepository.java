@@ -7,9 +7,10 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
-public interface EmailVerificationRepository extends JpaRepository<EmailVerification, Long> {
+public interface EmailVerificationRepository extends JpaRepository<EmailVerification, UUID> {
 
     Optional<EmailVerification> findTopByUserOrderByCreatedAtDesc(User user);
 
