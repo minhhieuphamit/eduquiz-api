@@ -18,6 +18,9 @@ import com.eduquiz.feature.email.service.EmailService;
 import com.eduquiz.security.jwt.JwtUtil;
 import com.eduquiz.feature.auth.entity.Role;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -195,15 +198,15 @@ public class AuthService {
         String verifyPath = "/auth/verify-otp?email=" + user.getEmail();
 
         if (user.getEmailVerified()) {
-             if (pendingPassword != null) {
-                 subject = "EduQuiz - Yêu cầu thay đổi mật khẩu";
-                 title = "Mã Xác Minh Thay Đổi Mật Khẩu EduQuiz";
-                 verifyPath = "/auth/password-change/confirm?email=" + user.getEmail();
-             } else {
-                 subject = "EduQuiz - Yêu cầu đặt lại mật khẩu";
-                 title = "Mã Xác Minh Đặt Lại Mật Khẩu EduQuiz";
-                 verifyPath = "/auth/reset-password?email=" + user.getEmail();
-             }
+            if (pendingPassword != null) {
+                subject = "EduQuiz - Yêu cầu thay đổi mật khẩu";
+                title = "Mã Xác Minh Thay Đổi Mật Khẩu EduQuiz";
+                verifyPath = "/auth/password-change/confirm?email=" + user.getEmail();
+            } else {
+                subject = "EduQuiz - Yêu cầu đặt lại mật khẩu";
+                title = "Mã Xác Minh Đặt Lại Mật Khẩu EduQuiz";
+                verifyPath = "/auth/reset-password?email=" + user.getEmail();
+            }
         }
 
         sendAndSaveOtp(user, pendingPassword, subject, title, verifyPath);
@@ -224,11 +227,11 @@ public class AuthService {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
             );
-        } catch (org.springframework.security.authentication.DisabledException e) {
+        } catch (DisabledException e) {
             throw new BadRequestException("Email chưa được xác thực. Vui lòng kiểm tra email và nhập mã OTP.");
-        } catch (org.springframework.security.authentication.LockedException e) {
+        } catch (LockedException e) {
             throw new BadRequestException("Tài khoản đã bị khóa. Vui lòng liên hệ admin.");
-        } catch (org.springframework.security.authentication.BadCredentialsException e) {
+        } catch (BadCredentialsException e) {
             throw new BadRequestException("Email hoặc mật khẩu không đúng.");
         }
 
