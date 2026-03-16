@@ -78,15 +78,22 @@ public class AuthService {
 
     @Transactional
     public ApiResponse<Void> register(RegisterRequest request) {
+        log.info("[AuthService.register] START - email={}, role={}", request.getEmail(), request.getRole());
+
         Role role = roleRepository.findByName(request.getRole().toUpperCase())
-                .orElseThrow(() -> new BadRequestException(ResponseCode.ROLE_NOT_FOUND));
+                .orElseThrow(() -> {
+                    log.warn("[AuthService.register] FAILED - role not found: {}", request.getRole());
+                    return new BadRequestException(ResponseCode.ROLE_NOT_FOUND);
+                });
 
         if (!role.isAllowRegistration()) {
+            log.warn("[AuthService.register] FAILED - registration not allowed for role: {}", role.getName());
             throw new BadRequestException(ResponseCode.INSUFFICIENT_ROLE,
                     "Không thể tự đăng ký với vai trò " + role.getName());
         }
 
         if (userRepository.existsByEmail(request.getEmail())) {
+            log.warn("[AuthService.register] FAILED - email already exists: {}", request.getEmail());
             throw new DuplicateResourceException(ResponseCode.EMAIL_ALREADY_EXISTS);
         }
 
@@ -102,13 +109,14 @@ public class AuthService {
                 .emailVerified(false)
                 .build();
         userRepository.save(user);
+        log.debug("[AuthService.register] User saved - email={}, userId={}", user.getEmail(), user.getId());
 
         sendAndSaveOtp(user, null,
                 "EduQuiz - Xác thực đăng ký tài khoản",
                 "Mã Xác Minh Đăng Ký Tài Khoản EduQuiz",
                 "/auth/verify-otp?email=" + user.getEmail());
 
-        log.info("User registered: {}", request.getEmail());
+        log.info("[AuthService.register] SUCCESS - email={}, userId={}", user.getEmail(), user.getId());
         return ApiResponse.ok(ResponseCode.AUTH_REGISTER_SUCCESS);
     }
 
@@ -118,21 +126,32 @@ public class AuthService {
 
     @Transactional
     public ApiResponse<Void> verifyOtp(VerifyOtpRequest request) {
+        log.info("[AuthService.verifyOtp] START - email={}", request.getEmail());
+
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new ResourceNotFoundException(ResponseCode.USER_NOT_FOUND));
+                .orElseThrow(() -> {
+                    log.warn("[AuthService.verifyOtp] FAILED - user not found: {}", request.getEmail());
+                    return new ResourceNotFoundException(ResponseCode.USER_NOT_FOUND);
+                });
 
         if (user.getEmailVerified()) {
+            log.warn("[AuthService.verifyOtp] FAILED - email already verified: {}", request.getEmail());
             throw new DuplicateResourceException(ResponseCode.EMAIL_ALREADY_VERIFIED);
         }
 
         EmailVerification verification = emailVerificationRepository.findTopByUserOrderByCreatedAtDesc(user)
-                .orElseThrow(() -> new OtpVerificationException(ResponseCode.OTP_NOT_FOUND));
+                .orElseThrow(() -> {
+                    log.warn("[AuthService.verifyOtp] FAILED - no OTP record found for: {}", request.getEmail());
+                    return new OtpVerificationException(ResponseCode.OTP_NOT_FOUND);
+                });
 
         if (verification.getExpiresAt().isBefore(LocalDateTime.now())) {
+            log.warn("[AuthService.verifyOtp] FAILED - OTP expired for: {}, expiredAt={}", request.getEmail(), verification.getExpiresAt());
             throw new OtpVerificationException(ResponseCode.OTP_EXPIRED);
         }
 
         if (verification.getAttempts() >= otpMaxAttempts) {
+            log.warn("[AuthService.verifyOtp] FAILED - max OTP attempts exceeded for: {}, attempts={}", request.getEmail(), verification.getAttempts());
             throw new OtpVerificationException(ResponseCode.OTP_MAX_ATTEMPTS_EXCEEDED);
         }
 
@@ -140,8 +159,10 @@ public class AuthService {
 
         if (!verification.getOtpCode().equals(request.getOtp())) {
             emailVerificationRepository.save(verification);
+            int remaining = otpMaxAttempts - verification.getAttempts();
+            log.warn("[AuthService.verifyOtp] FAILED - invalid OTP for: {}, attemptsUsed={}, remaining={}", request.getEmail(), verification.getAttempts(), remaining);
             throw new OtpVerificationException(ResponseCode.OTP_INVALID,
-                    "Mã OTP không đúng. Còn " + (otpMaxAttempts - verification.getAttempts()) + " lần thử.");
+                    "Mã OTP không đúng. Còn " + remaining + " lần thử.");
         }
 
         verification.setVerified(true);
@@ -152,7 +173,7 @@ public class AuthService {
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
 
-        log.info("Email verified: {}", request.getEmail());
+        log.info("[AuthService.verifyOtp] SUCCESS - email={}, userId={}", request.getEmail(), user.getId());
         return ApiResponse.ok(ResponseCode.OTP_VERIFIED_SUCCESS);
     }
 
@@ -162,10 +183,16 @@ public class AuthService {
 
     @Transactional
     public ApiResponse<Void> resendOtp(String email) {
+        log.info("[AuthService.resendOtp] START - email={}", email);
+
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException(ResponseCode.USER_NOT_FOUND));
+                .orElseThrow(() -> {
+                    log.warn("[AuthService.resendOtp] FAILED - user not found: {}", email);
+                    return new ResourceNotFoundException(ResponseCode.USER_NOT_FOUND);
+                });
 
         if (user.getEmailVerified()) {
+            log.warn("[AuthService.resendOtp] FAILED - email already verified: {}", email);
             throw new DuplicateResourceException(ResponseCode.EMAIL_ALREADY_VERIFIED);
         }
 
@@ -173,6 +200,7 @@ public class AuthService {
         int resentCount = emailVerificationRepository.countByUserAndCreatedAtAfter(user, since);
 
         if (resentCount >= otpMaxResend) {
+            log.warn("[AuthService.resendOtp] FAILED - resend limit exceeded for: {}, resentCount={}, maxResend={}", email, resentCount, otpMaxResend);
             throw new OtpVerificationException(ResponseCode.OTP_RESEND_LIMIT_EXCEEDED);
         }
 
@@ -200,7 +228,7 @@ public class AuthService {
 
         sendAndSaveOtp(user, pendingPassword, subject, title, verifyPath);
 
-        log.info("OTP resent to: {}", email);
+        log.info("[AuthService.resendOtp] SUCCESS - email={}, resentCount={}", email, resentCount + 1);
         return ApiResponse.ok(ResponseCode.OTP_RESENT_SUCCESS);
     }
 
@@ -210,20 +238,28 @@ public class AuthService {
 
     @Transactional
     public ApiResponse<AuthResponse> login(LoginRequest request) {
+        log.info("[AuthService.login] START - email={}", request.getEmail());
+
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
             );
         } catch (DisabledException e) {
+            log.warn("[AuthService.login] FAILED - account not verified: {}", request.getEmail());
             throw new BadRequestException(ResponseCode.AUTH_ACCOUNT_NOT_VERIFIED);
         } catch (LockedException e) {
+            log.warn("[AuthService.login] FAILED - account inactive/locked: {}", request.getEmail());
             throw new BadRequestException(ResponseCode.AUTH_ACCOUNT_INACTIVE);
         } catch (BadCredentialsException e) {
+            log.warn("[AuthService.login] FAILED - invalid credentials: {}", request.getEmail());
             throw new BadRequestException(ResponseCode.AUTH_INVALID_CREDENTIALS);
         }
 
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new BadRequestException(ResponseCode.AUTH_INVALID_CREDENTIALS));
+                .orElseThrow(() -> {
+                    log.error("[AuthService.login] FAILED - user not found after auth success: {}", request.getEmail());
+                    return new BadRequestException(ResponseCode.AUTH_INVALID_CREDENTIALS);
+                });
 
         String accessToken = jwtUtil.generateToken(user);
         String refreshToken = createRefreshToken(user);
@@ -234,7 +270,7 @@ public class AuthService {
                 .expiresIn(jwtUtil.getAccessTokenExpirationSeconds())
                 .build();
 
-        log.info("User logged in: {}", request.getEmail());
+        log.info("[AuthService.login] SUCCESS - email={}, userId={}", request.getEmail(), user.getId());
         return ApiResponse.ok(ResponseCode.AUTH_LOGIN_SUCCESS, authResponse);
     }
 
@@ -244,16 +280,23 @@ public class AuthService {
 
     @Transactional
     public ApiResponse<AuthResponse> refreshToken(RefreshTokenRequest request) {
+        log.info("[AuthService.refreshToken] START");
+
         RefreshToken refreshToken = refreshTokenRepository.findByToken(request.getRefreshToken())
-                .orElseThrow(() -> new BadRequestException(ResponseCode.AUTH_REFRESH_TOKEN_INVALID));
+                .orElseThrow(() -> {
+                    log.warn("[AuthService.refreshToken] FAILED - token not found in DB");
+                    return new BadRequestException(ResponseCode.AUTH_REFRESH_TOKEN_INVALID);
+                });
 
         if (refreshToken.getRevoked()) {
+            log.warn("[AuthService.refreshToken] FAILED - token already revoked, userId={}", refreshToken.getUser().getId());
             throw new BadRequestException(ResponseCode.AUTH_REFRESH_TOKEN_INVALID);
         }
 
         if (refreshToken.getExpiryDate().isBefore(LocalDateTime.now())) {
             refreshToken.setRevoked(true);
             refreshTokenRepository.save(refreshToken);
+            log.warn("[AuthService.refreshToken] FAILED - token expired, userId={}, expiredAt={}", refreshToken.getUser().getId(), refreshToken.getExpiryDate());
             throw new BadRequestException(ResponseCode.AUTH_REFRESH_TOKEN_EXPIRED);
         }
 
@@ -271,6 +314,7 @@ public class AuthService {
                 .expiresIn(jwtUtil.getAccessTokenExpirationSeconds())
                 .build();
 
+        log.info("[AuthService.refreshToken] SUCCESS - email={}, userId={}", user.getEmail(), user.getId());
         return ApiResponse.ok(ResponseCode.AUTH_REFRESH_SUCCESS, authResponse);
     }
 
@@ -280,12 +324,14 @@ public class AuthService {
 
     @Transactional
     public ApiResponse<Void> logout(User user) {
+        log.info("[AuthService.logout] START - email={}, userId={}", user.getEmail(), user.getId());
+
         user.setTokenInvalidatedAt(LocalDateTime.now());
         userRepository.save(user);
 
         refreshTokenRepository.deleteByUser(user);
 
-        log.info("User logged out: {}", user.getEmail());
+        log.info("[AuthService.logout] SUCCESS - email={}, userId={}, allTokensRevoked=true", user.getEmail(), user.getId());
         return ApiResponse.ok(ResponseCode.AUTH_LOGOUT_SUCCESS);
     }
 
@@ -294,6 +340,8 @@ public class AuthService {
     // ══════════════════════════════════════════════════════
 
     public ApiResponse<UserInfoResponse> getCurrentUser(User user) {
+        log.info("[AuthService.getCurrentUser] START - email={}, userId={}", user.getEmail(), user.getId());
+
         UserInfoResponse userInfo = UserInfoResponse.builder()
                 .email(user.getEmail())
                 .firstName(user.getFirstName())
@@ -302,6 +350,8 @@ public class AuthService {
                 .phoneNumber(user.getPhoneNumber())
                 .role(user.getRole().getName())
                 .build();
+
+        log.info("[AuthService.getCurrentUser] SUCCESS - email={}, role={}", user.getEmail(), user.getRole().getName());
         return ApiResponse.ok(ResponseCode.AUTH_ME_SUCCESS, userInfo);
     }
 
@@ -311,10 +361,16 @@ public class AuthService {
 
     @Transactional
     public ApiResponse<Void> forgotPassword(ForgotPasswordRequest request) {
+        log.info("[AuthService.forgotPassword] START - email={}", request.getEmail());
+
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new ResourceNotFoundException(ResponseCode.USER_NOT_FOUND));
+                .orElseThrow(() -> {
+                    log.warn("[AuthService.forgotPassword] FAILED - user not found: {}", request.getEmail());
+                    return new ResourceNotFoundException(ResponseCode.USER_NOT_FOUND);
+                });
 
         if (!user.getIsActive()) {
+            log.warn("[AuthService.forgotPassword] FAILED - account inactive: {}", request.getEmail());
             throw new BadRequestException(ResponseCode.AUTH_ACCOUNT_INACTIVE);
         }
 
@@ -322,23 +378,29 @@ public class AuthService {
                 "EduQuiz - Yêu cầu đặt lại mật khẩu",
                 "Mã Xác Minh Đặt Lại Mật Khẩu EduQuiz",
                 "/auth/reset-password?email=" + user.getEmail());
-        log.info("Password reset OTP sent to: {}", request.getEmail());
+
+        log.info("[AuthService.forgotPassword] SUCCESS - OTP sent to: {}", request.getEmail());
         return ApiResponse.ok(ResponseCode.OTP_SENT_SUCCESS);
     }
 
     @Transactional
     public ApiResponse<Void> resetPassword(ResetPasswordRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new ResourceNotFoundException(ResponseCode.USER_NOT_FOUND));
+        log.info("[AuthService.resetPassword] START - email={}", request.getEmail());
 
-        verifyOtpInternal(user, request.getOtp());
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> {
+                    log.warn("[AuthService.resetPassword] FAILED - user not found: {}", request.getEmail());
+                    return new ResourceNotFoundException(ResponseCode.USER_NOT_FOUND);
+                });
+
+        verifyOtpInternal("resetPassword", user, request.getOtp());
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         user.setTokenInvalidatedAt(LocalDateTime.now());
         refreshTokenRepository.deleteByUser(user);
         userRepository.save(user);
 
-        log.info("Password reset successful for: {}", request.getEmail());
+        log.info("[AuthService.resetPassword] SUCCESS - email={}, userId={}, allSessionsInvalidated=true", request.getEmail(), user.getId());
         return ApiResponse.ok(ResponseCode.AUTH_PASSWORD_RESET_SUCCESS);
     }
 
@@ -348,11 +410,15 @@ public class AuthService {
 
     @Transactional
     public ApiResponse<Void> requestPasswordChange(User user, ChangePasswordInitRequest request) {
+        log.info("[AuthService.requestPasswordChange] START - email={}, userId={}", user.getEmail(), user.getId());
+
         if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
+            log.warn("[AuthService.requestPasswordChange] FAILED - incorrect current password: {}", user.getEmail());
             throw new BadRequestException(ResponseCode.AUTH_PASSWORD_INCORRECT);
         }
 
         if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
+            log.warn("[AuthService.requestPasswordChange] FAILED - new password same as old: {}", user.getEmail());
             throw new BadRequestException(ResponseCode.AUTH_NEW_PASSWORD_SAME_AS_OLD);
         }
 
@@ -360,18 +426,25 @@ public class AuthService {
                 "EduQuiz - Yêu cầu thay đổi mật khẩu",
                 "Mã Xác Minh Thay Đổi Mật Khẩu EduQuiz",
                 "/auth/password-change/confirm");
-        log.info("Password change OTP sent to: {}", user.getEmail());
+
+        log.info("[AuthService.requestPasswordChange] SUCCESS - OTP sent to: {}", user.getEmail());
         return ApiResponse.ok(ResponseCode.OTP_SENT_SUCCESS);
     }
 
     @Transactional
     public ApiResponse<Void> changePassword(User user, ChangePasswordRequest request) {
-        verifyOtpInternal(user, request.getOtp());
+        log.info("[AuthService.changePassword] START - email={}, userId={}", user.getEmail(), user.getId());
+
+        verifyOtpInternal("changePassword", user, request.getOtp());
 
         EmailVerification verification = emailVerificationRepository.findTopByUserOrderByCreatedAtDesc(user)
-                .orElseThrow(() -> new BadRequestException(ResponseCode.OTP_NOT_FOUND));
+                .orElseThrow(() -> {
+                    log.error("[AuthService.changePassword] FAILED - no OTP record found after verify: {}", user.getEmail());
+                    return new BadRequestException(ResponseCode.OTP_NOT_FOUND);
+                });
 
         if (verification.getNewPassword() == null) {
+            log.warn("[AuthService.changePassword] FAILED - no pending password in OTP record: {}", user.getEmail());
             throw new BadRequestException(ResponseCode.BAD_REQUEST, "Yêu cầu thay đổi mật khẩu không hợp lệ.");
         }
 
@@ -380,7 +453,7 @@ public class AuthService {
         refreshTokenRepository.deleteByUser(user);
         userRepository.save(user);
 
-        log.info("Password changed successfully for: {}", user.getEmail());
+        log.info("[AuthService.changePassword] SUCCESS - email={}, userId={}, allSessionsInvalidated=true", user.getEmail(), user.getId());
         return ApiResponse.ok(ResponseCode.AUTH_PASSWORD_CHANGED);
     }
 
@@ -390,6 +463,8 @@ public class AuthService {
 
     @Transactional
     public ApiResponse<UserInfoResponse> updateProfile(User user, UpdateProfileRequest request) {
+        log.info("[AuthService.updateProfile] START - email={}, userId={}", user.getEmail(), user.getId());
+
         if (request.getFirstName() != null) user.setFirstName(request.getFirstName());
         if (request.getLastName() != null) user.setLastName(request.getLastName());
         if (request.getDob() != null) user.setDob(request.getDob());
@@ -397,8 +472,6 @@ public class AuthService {
 
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
-
-        log.info("Profile updated for: {}", user.getEmail());
 
         UserInfoResponse userInfo = UserInfoResponse.builder()
                 .email(user.getEmail())
@@ -408,6 +481,8 @@ public class AuthService {
                 .phoneNumber(user.getPhoneNumber())
                 .role(user.getRole().getName())
                 .build();
+
+        log.info("[AuthService.updateProfile] SUCCESS - email={}, userId={}", user.getEmail(), user.getId());
         return ApiResponse.ok(ResponseCode.AUTH_PROFILE_UPDATED, userInfo);
     }
 
@@ -416,6 +491,8 @@ public class AuthService {
     // ══════════════════════════════════════════════════════
 
     private void sendAndSaveOtp(User user, String pendingPassword, String subject, String title, String verifyPath) {
+        log.debug("[AuthService.sendAndSaveOtp] START - email={}, subject={}", user.getEmail(), subject);
+
         String otp = otpGenerator.generateOtp();
 
         EmailVerification verification = EmailVerification.builder()
@@ -431,21 +508,30 @@ public class AuthService {
         String fullUrl = frontendUrl + verifyPath;
 
         emailService.sendOtpEmail(user.getEmail(), subject, title, otp, user.getFullName(), fullUrl);
+        log.info("[AuthService.sendAndSaveOtp] SUCCESS - email={}, expiresAt={}", user.getEmail(), verification.getExpiresAt());
     }
 
-    private void verifyOtpInternal(User user, String otpCode) {
+    private void verifyOtpInternal(String callerMethod, User user, String otpCode) {
+        log.debug("[AuthService.verifyOtpInternal] START - caller={}, email={}", callerMethod, user.getEmail());
+
         EmailVerification verification = emailVerificationRepository.findTopByUserOrderByCreatedAtDesc(user)
-                .orElseThrow(() -> new OtpVerificationException(ResponseCode.OTP_NOT_FOUND));
+                .orElseThrow(() -> {
+                    log.warn("[AuthService.verifyOtpInternal] FAILED - caller={}, no OTP record: {}", callerMethod, user.getEmail());
+                    return new OtpVerificationException(ResponseCode.OTP_NOT_FOUND);
+                });
 
         if (verification.getVerified()) {
+            log.warn("[AuthService.verifyOtpInternal] FAILED - caller={}, OTP already used: {}", callerMethod, user.getEmail());
             throw new OtpVerificationException(ResponseCode.OTP_ALREADY_USED);
         }
 
         if (verification.getExpiresAt().isBefore(LocalDateTime.now())) {
+            log.warn("[AuthService.verifyOtpInternal] FAILED - caller={}, OTP expired: {}, expiredAt={}", callerMethod, user.getEmail(), verification.getExpiresAt());
             throw new OtpVerificationException(ResponseCode.OTP_EXPIRED);
         }
 
         if (verification.getAttempts() >= otpMaxAttempts) {
+            log.warn("[AuthService.verifyOtpInternal] FAILED - caller={}, max attempts exceeded: {}, attempts={}", callerMethod, user.getEmail(), verification.getAttempts());
             throw new OtpVerificationException(ResponseCode.OTP_MAX_ATTEMPTS_EXCEEDED);
         }
 
@@ -453,11 +539,13 @@ public class AuthService {
 
         if (!verification.getOtpCode().equals(otpCode)) {
             emailVerificationRepository.save(verification);
+            log.warn("[AuthService.verifyOtpInternal] FAILED - caller={}, invalid OTP: {}, attemptsUsed={}", callerMethod, user.getEmail(), verification.getAttempts());
             throw new OtpVerificationException(ResponseCode.OTP_INVALID);
         }
 
         verification.setVerified(true);
         emailVerificationRepository.save(verification);
+        log.info("[AuthService.verifyOtpInternal] SUCCESS - caller={}, email={}", callerMethod, user.getEmail());
     }
 
     private String createRefreshToken(User user) {
@@ -468,6 +556,7 @@ public class AuthService {
                 .revoked(false)
                 .build();
         refreshTokenRepository.save(refreshToken);
+        log.debug("[AuthService.createRefreshToken] Token created - email={}, expiresAt={}", user.getEmail(), refreshToken.getExpiryDate());
         return refreshToken.getToken();
     }
 }
