@@ -1,5 +1,6 @@
 package com.eduquiz.feature.auth.service;
 
+import com.eduquiz.common.constant.ResponseCode;
 import com.eduquiz.common.dto.ApiResponse;
 import com.eduquiz.common.exception.BadRequestException;
 import com.eduquiz.common.exception.DuplicateResourceException;
@@ -77,21 +78,18 @@ public class AuthService {
 
     @Transactional
     public ApiResponse<Void> register(RegisterRequest request) {
-        // Fetch role entity
         Role role = roleRepository.findByName(request.getRole().toUpperCase())
-                .orElseThrow(() -> new BadRequestException("Vai trò không hợp lệ: " + request.getRole()));
+                .orElseThrow(() -> new BadRequestException(ResponseCode.ROLE_NOT_FOUND));
 
-        // Check if registration is allowed for this role
         if (!role.isAllowRegistration()) {
-            throw new BadRequestException("Không thể tự đăng ký với vai trò " + role.getName() + ".");
+            throw new BadRequestException(ResponseCode.INSUFFICIENT_ROLE,
+                    "Không thể tự đăng ký với vai trò " + role.getName());
         }
 
-        // Check duplicate email
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new DuplicateResourceException("Email đã được đăng ký: " + request.getEmail());
+            throw new DuplicateResourceException(ResponseCode.EMAIL_ALREADY_EXISTS);
         }
 
-        // Create inactive user
         User user = User.builder()
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
@@ -105,14 +103,13 @@ public class AuthService {
                 .build();
         userRepository.save(user);
 
-        // Generate & save OTP
         sendAndSaveOtp(user, null,
                 "EduQuiz - Xác thực đăng ký tài khoản",
                 "Mã Xác Minh Đăng Ký Tài Khoản EduQuiz",
                 "/auth/verify-otp?email=" + user.getEmail());
 
         log.info("User registered: {}", request.getEmail());
-        return ApiResponse.ok("Đăng ký thành công! Vui lòng kiểm tra email để xác thực OTP.");
+        return ApiResponse.ok(ResponseCode.AUTH_REGISTER_SUCCESS);
     }
 
     // ══════════════════════════════════════════════════════
@@ -122,46 +119,41 @@ public class AuthService {
     @Transactional
     public ApiResponse<Void> verifyOtp(VerifyOtpRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy user với email: " + request.getEmail()));
+                .orElseThrow(() -> new ResourceNotFoundException(ResponseCode.USER_NOT_FOUND));
 
         if (user.getEmailVerified()) {
-            throw new BadRequestException("Email đã được xác thực trước đó.");
+            throw new DuplicateResourceException(ResponseCode.EMAIL_ALREADY_VERIFIED);
         }
 
         EmailVerification verification = emailVerificationRepository.findTopByUserOrderByCreatedAtDesc(user)
-                .orElseThrow(() -> new OtpVerificationException("Không tìm thấy mã OTP. Vui lòng yêu cầu gửi lại."));
+                .orElseThrow(() -> new OtpVerificationException(ResponseCode.OTP_NOT_FOUND));
 
-        // Check expired
         if (verification.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new OtpVerificationException("Mã OTP đã hết hạn. Vui lòng yêu cầu gửi lại.");
+            throw new OtpVerificationException(ResponseCode.OTP_EXPIRED);
         }
 
-        // Check max attempts
         if (verification.getAttempts() >= otpMaxAttempts) {
-            throw new OtpVerificationException("Bạn đã nhập sai quá " + otpMaxAttempts + " lần. Vui lòng yêu cầu gửi lại OTP.");
+            throw new OtpVerificationException(ResponseCode.OTP_MAX_ATTEMPTS_EXCEEDED);
         }
 
-        // Increment attempts
         verification.setAttempts(verification.getAttempts() + 1);
 
-        // Verify OTP
         if (!verification.getOtpCode().equals(request.getOtp())) {
             emailVerificationRepository.save(verification);
-            throw new OtpVerificationException("Mã OTP không đúng. Còn " + (otpMaxAttempts - verification.getAttempts()) + " lần thử.");
+            throw new OtpVerificationException(ResponseCode.OTP_INVALID,
+                    "Mã OTP không đúng. Còn " + (otpMaxAttempts - verification.getAttempts()) + " lần thử.");
         }
 
-        // Mark verified
         verification.setVerified(true);
         emailVerificationRepository.save(verification);
 
-        // Activate user
         user.setIsActive(true);
         user.setEmailVerified(true);
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
 
         log.info("Email verified: {}", request.getEmail());
-        return ApiResponse.ok("Xác thực email thành công! Bạn có thể đăng nhập.");
+        return ApiResponse.ok(ResponseCode.OTP_VERIFIED_SUCCESS);
     }
 
     // ══════════════════════════════════════════════════════
@@ -171,22 +163,19 @@ public class AuthService {
     @Transactional
     public ApiResponse<Void> resendOtp(String email) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy user với email: " + email));
+                .orElseThrow(() -> new ResourceNotFoundException(ResponseCode.USER_NOT_FOUND));
 
         if (user.getEmailVerified()) {
-            throw new BadRequestException("Email đã được xác thực trước đó.");
+            throw new DuplicateResourceException(ResponseCode.EMAIL_ALREADY_VERIFIED);
         }
 
-        // Check resend limit (max N times within cooldown window)
         LocalDateTime since = LocalDateTime.now().minusMinutes(otpResendCooldownMinutes);
         int resentCount = emailVerificationRepository.countByUserAndCreatedAtAfter(user, since);
 
         if (resentCount >= otpMaxResend) {
-            throw new BadRequestException(
-                    "Bạn đã gửi lại OTP " + otpMaxResend + " lần trong " + otpResendCooldownMinutes + " phút. Vui lòng đợi.");
+            throw new OtpVerificationException(ResponseCode.OTP_RESEND_LIMIT_EXCEEDED);
         }
 
-        // Copy pending password if resending for a password change request
         String pendingPassword = null;
         Optional<EmailVerification> lastVerification = emailVerificationRepository.findTopByUserOrderByCreatedAtDesc(user);
         if (lastVerification.isPresent()) {
@@ -212,7 +201,7 @@ public class AuthService {
         sendAndSaveOtp(user, pendingPassword, subject, title, verifyPath);
 
         log.info("OTP resent to: {}", email);
-        return ApiResponse.ok("Mã OTP mới đã được gửi đến email của bạn.");
+        return ApiResponse.ok(ResponseCode.OTP_RESENT_SUCCESS);
     }
 
     // ══════════════════════════════════════════════════════
@@ -221,24 +210,21 @@ public class AuthService {
 
     @Transactional
     public ApiResponse<AuthResponse> login(LoginRequest request) {
-        // Authenticate qua Spring Security pipeline
-        // Tự động check: password, isEnabled, isAccountNonLocked, isCredentialsNonExpired
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
             );
         } catch (DisabledException e) {
-            throw new BadRequestException("Email chưa được xác thực. Vui lòng kiểm tra email và nhập mã OTP.");
+            throw new BadRequestException(ResponseCode.AUTH_ACCOUNT_NOT_VERIFIED);
         } catch (LockedException e) {
-            throw new BadRequestException("Tài khoản đã bị khóa. Vui lòng liên hệ admin.");
+            throw new BadRequestException(ResponseCode.AUTH_ACCOUNT_INACTIVE);
         } catch (BadCredentialsException e) {
-            throw new BadRequestException("Email hoặc mật khẩu không đúng.");
+            throw new BadRequestException(ResponseCode.AUTH_INVALID_CREDENTIALS);
         }
 
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new BadRequestException("Email hoặc mật khẩu không đúng."));
+                .orElseThrow(() -> new BadRequestException(ResponseCode.AUTH_INVALID_CREDENTIALS));
 
-        // Generate tokens
         String accessToken = jwtUtil.generateToken(user);
         String refreshToken = createRefreshToken(user);
 
@@ -249,7 +235,7 @@ public class AuthService {
                 .build();
 
         log.info("User logged in: {}", request.getEmail());
-        return ApiResponse.ok("Đăng nhập thành công!", authResponse);
+        return ApiResponse.ok(ResponseCode.AUTH_LOGIN_SUCCESS, authResponse);
     }
 
     // ══════════════════════════════════════════════════════
@@ -259,26 +245,22 @@ public class AuthService {
     @Transactional
     public ApiResponse<AuthResponse> refreshToken(RefreshTokenRequest request) {
         RefreshToken refreshToken = refreshTokenRepository.findByToken(request.getRefreshToken())
-                .orElseThrow(() -> new BadRequestException("Refresh token không hợp lệ."));
+                .orElseThrow(() -> new BadRequestException(ResponseCode.AUTH_REFRESH_TOKEN_INVALID));
 
-        // Check revoked
         if (refreshToken.getRevoked()) {
-            throw new BadRequestException("Refresh token đã bị thu hồi.");
+            throw new BadRequestException(ResponseCode.AUTH_REFRESH_TOKEN_INVALID);
         }
 
-        // Check expired
         if (refreshToken.getExpiryDate().isBefore(LocalDateTime.now())) {
             refreshToken.setRevoked(true);
             refreshTokenRepository.save(refreshToken);
-            throw new BadRequestException("Refresh token đã hết hạn. Vui lòng đăng nhập lại.");
+            throw new BadRequestException(ResponseCode.AUTH_REFRESH_TOKEN_EXPIRED);
         }
 
         User user = refreshToken.getUser();
 
-        // Generate new access token
         String newAccessToken = jwtUtil.generateToken(user);
 
-        // Rotate refresh token: revoke old, create new
         refreshToken.setRevoked(true);
         refreshTokenRepository.save(refreshToken);
         String newRefreshToken = createRefreshToken(user);
@@ -289,7 +271,7 @@ public class AuthService {
                 .expiresIn(jwtUtil.getAccessTokenExpirationSeconds())
                 .build();
 
-        return ApiResponse.ok("Token đã được làm mới.", authResponse);
+        return ApiResponse.ok(ResponseCode.AUTH_REFRESH_SUCCESS, authResponse);
     }
 
     // ══════════════════════════════════════════════════════
@@ -298,15 +280,13 @@ public class AuthService {
 
     @Transactional
     public ApiResponse<Void> logout(User user) {
-        // Invalidate tất cả access token đã phát hành trước thời điểm này
         user.setTokenInvalidatedAt(LocalDateTime.now());
         userRepository.save(user);
 
-        // Xóa tất cả refresh token
         refreshTokenRepository.deleteByUser(user);
 
         log.info("User logged out: {}", user.getEmail());
-        return ApiResponse.ok("Đăng xuất thành công.");
+        return ApiResponse.ok(ResponseCode.AUTH_LOGOUT_SUCCESS);
     }
 
     // ══════════════════════════════════════════════════════
@@ -322,7 +302,7 @@ public class AuthService {
                 .phoneNumber(user.getPhoneNumber())
                 .role(user.getRole().getName())
                 .build();
-        return ApiResponse.ok(userInfo);
+        return ApiResponse.ok(ResponseCode.AUTH_ME_SUCCESS, userInfo);
     }
 
     // ══════════════════════════════════════════════════════
@@ -332,10 +312,10 @@ public class AuthService {
     @Transactional
     public ApiResponse<Void> forgotPassword(ForgotPasswordRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy user với email: " + request.getEmail()));
+                .orElseThrow(() -> new ResourceNotFoundException(ResponseCode.USER_NOT_FOUND));
 
         if (!user.getIsActive()) {
-            throw new BadRequestException("Tài khoản chưa được kích hoạt.");
+            throw new BadRequestException(ResponseCode.AUTH_ACCOUNT_INACTIVE);
         }
 
         sendAndSaveOtp(user, null,
@@ -343,23 +323,23 @@ public class AuthService {
                 "Mã Xác Minh Đặt Lại Mật Khẩu EduQuiz",
                 "/auth/reset-password?email=" + user.getEmail());
         log.info("Password reset OTP sent to: {}", request.getEmail());
-        return ApiResponse.ok("Mã OTP đặt lại mật khẩu đã được gửi đến email của bạn.");
+        return ApiResponse.ok(ResponseCode.OTP_SENT_SUCCESS);
     }
 
     @Transactional
     public ApiResponse<Void> resetPassword(ResetPasswordRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy user với email: " + request.getEmail()));
+                .orElseThrow(() -> new ResourceNotFoundException(ResponseCode.USER_NOT_FOUND));
 
         verifyOtpInternal(user, request.getOtp());
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
-        user.setTokenInvalidatedAt(LocalDateTime.now()); // Logout all sessions
+        user.setTokenInvalidatedAt(LocalDateTime.now());
         refreshTokenRepository.deleteByUser(user);
         userRepository.save(user);
 
         log.info("Password reset successful for: {}", request.getEmail());
-        return ApiResponse.ok("Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại.");
+        return ApiResponse.ok(ResponseCode.AUTH_PASSWORD_RESET_SUCCESS);
     }
 
     // ══════════════════════════════════════════════════════
@@ -369,11 +349,11 @@ public class AuthService {
     @Transactional
     public ApiResponse<Void> requestPasswordChange(User user, ChangePasswordInitRequest request) {
         if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
-            throw new BadRequestException("Mật khẩu cũ không chính xác.");
+            throw new BadRequestException(ResponseCode.AUTH_PASSWORD_INCORRECT);
         }
 
         if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
-            throw new BadRequestException("Mật khẩu mới không được trùng với mật khẩu cũ.");
+            throw new BadRequestException(ResponseCode.AUTH_NEW_PASSWORD_SAME_AS_OLD);
         }
 
         sendAndSaveOtp(user, passwordEncoder.encode(request.getNewPassword()),
@@ -381,19 +361,18 @@ public class AuthService {
                 "Mã Xác Minh Thay Đổi Mật Khẩu EduQuiz",
                 "/auth/password-change/confirm");
         log.info("Password change OTP sent to: {}", user.getEmail());
-        return ApiResponse.ok("Mã OTP thay đổi mật khẩu đã được gửi đến email của bạn.");
+        return ApiResponse.ok(ResponseCode.OTP_SENT_SUCCESS);
     }
 
     @Transactional
     public ApiResponse<Void> changePassword(User user, ChangePasswordRequest request) {
         verifyOtpInternal(user, request.getOtp());
 
-        // Lấy OTP mới nhất đã được verify (verifyOtpInternal đã mark verified = true)
         EmailVerification verification = emailVerificationRepository.findTopByUserOrderByCreatedAtDesc(user)
-                .orElseThrow(() -> new BadRequestException("Không tìm thấy yêu cầu thay đổi mật khẩu."));
+                .orElseThrow(() -> new BadRequestException(ResponseCode.OTP_NOT_FOUND));
 
         if (verification.getNewPassword() == null) {
-            throw new BadRequestException("Yêu cầu thay đổi mật khẩu không hợp lệ.");
+            throw new BadRequestException(ResponseCode.BAD_REQUEST, "Yêu cầu thay đổi mật khẩu không hợp lệ.");
         }
 
         user.setPassword(verification.getNewPassword());
@@ -402,7 +381,7 @@ public class AuthService {
         userRepository.save(user);
 
         log.info("Password changed successfully for: {}", user.getEmail());
-        return ApiResponse.ok("Thay đổi mật khẩu thành công. Vui lòng đăng nhập lại.");
+        return ApiResponse.ok(ResponseCode.AUTH_PASSWORD_CHANGED);
     }
 
     // ══════════════════════════════════════════════════════
@@ -420,7 +399,16 @@ public class AuthService {
         userRepository.save(user);
 
         log.info("Profile updated for: {}", user.getEmail());
-        return getCurrentUser(user);
+
+        UserInfoResponse userInfo = UserInfoResponse.builder()
+                .email(user.getEmail())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .dob(user.getDob())
+                .phoneNumber(user.getPhoneNumber())
+                .role(user.getRole().getName())
+                .build();
+        return ApiResponse.ok(ResponseCode.AUTH_PROFILE_UPDATED, userInfo);
     }
 
     // ══════════════════════════════════════════════════════
@@ -440,34 +428,32 @@ public class AuthService {
                 .build();
         emailVerificationRepository.save(verification);
 
-        // Construct verification URL (OTP NOT included in URL for security)
         String fullUrl = frontendUrl + verifyPath;
 
-        // Send email (OTP is displayed in the email body only)
         emailService.sendOtpEmail(user.getEmail(), subject, title, otp, user.getFullName(), fullUrl);
     }
 
     private void verifyOtpInternal(User user, String otpCode) {
         EmailVerification verification = emailVerificationRepository.findTopByUserOrderByCreatedAtDesc(user)
-                .orElseThrow(() -> new OtpVerificationException("Không tìm thấy mã OTP. Vui lòng yêu cầu gửi lại."));
+                .orElseThrow(() -> new OtpVerificationException(ResponseCode.OTP_NOT_FOUND));
 
         if (verification.getVerified()) {
-            throw new BadRequestException("Mã OTP này đã được sử dụng.");
+            throw new OtpVerificationException(ResponseCode.OTP_ALREADY_USED);
         }
 
         if (verification.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new OtpVerificationException("Mã OTP đã hết hạn.");
+            throw new OtpVerificationException(ResponseCode.OTP_EXPIRED);
         }
 
         if (verification.getAttempts() >= otpMaxAttempts) {
-            throw new OtpVerificationException("Bạn đã nhập sai quá " + otpMaxAttempts + " lần.");
+            throw new OtpVerificationException(ResponseCode.OTP_MAX_ATTEMPTS_EXCEEDED);
         }
 
         verification.setAttempts(verification.getAttempts() + 1);
 
         if (!verification.getOtpCode().equals(otpCode)) {
             emailVerificationRepository.save(verification);
-            throw new OtpVerificationException("Mã OTP không đúng.");
+            throw new OtpVerificationException(ResponseCode.OTP_INVALID);
         }
 
         verification.setVerified(true);

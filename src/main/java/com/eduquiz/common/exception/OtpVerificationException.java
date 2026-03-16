@@ -1,11 +1,18 @@
 package com.eduquiz.common.exception;
 
-/**
- * Custom exception.
- * TODO: Implement extends RuntimeException
- */
-public class OtpVerificationException extends RuntimeException {
+import com.eduquiz.common.constant.ResponseCode;
+
+public class OtpVerificationException extends BaseException {
+
+    public OtpVerificationException(ResponseCode responseCode) {
+        super(responseCode);
+    }
+
+    public OtpVerificationException(ResponseCode responseCode, String message) {
+        super(responseCode, message);
+    }
+
     public OtpVerificationException(String message) {
-        super(message);
+        super(ResponseCode.OTP_INVALID, message);
     }
 }
