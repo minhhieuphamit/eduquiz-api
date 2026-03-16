@@ -1,5 +1,6 @@
 package com.eduquiz.feature.auth.dto;
 
+import com.eduquiz.common.validation.StrongPassword;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 
@@ -18,11 +19,7 @@ public class RegisterRequest {
     private String email;
 
     @NotBlank(message = "Mật khẩu không được để trống")
-    @Size(min = 8, max = 50, message = "Mật khẩu phải có từ 8 đến 50 ký tự")
-    @Pattern(
-            regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$",
-            message = "Mật khẩu phải chứa ít nhất 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt (@$!%*?&)"
-    )
+    @StrongPassword
     private String password;
 
     @NotBlank(message = "Họ không được để trống")
