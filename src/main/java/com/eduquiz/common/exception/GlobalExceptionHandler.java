@@ -21,18 +21,23 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BaseException.class)
     public ResponseEntity<ApiResponse<Void>> handleBaseException(BaseException ex) {
         ResponseCode rc = ex.getResponseCode();
-        return ResponseEntity.status(resolveHttpStatus(rc))
+        HttpStatus status = resolveHttpStatus(rc);
+        log.warn("[GlobalExceptionHandler.handleBaseException] code={}, httpStatus={}, exception={}, message={}",
+                rc.getCode(), status.value(), ex.getClass().getSimpleName(), ex.getMessage());
+        return ResponseEntity.status(status)
                 .body(ApiResponse.error(rc, ex.getMessage()));
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException ex) {
+        log.warn("[GlobalExceptionHandler.handleAccessDenied] message={}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(ApiResponse.error(ResponseCode.AUTH_FORBIDDEN));
     }
 
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ApiResponse<Void>> handleAuthentication(AuthenticationException ex) {
+        log.warn("[GlobalExceptionHandler.handleAuthentication] exception={}, message={}", ex.getClass().getSimpleName(), ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(ApiResponse.error(ResponseCode.AUTH_UNAUTHORIZED));
     }
@@ -42,13 +47,16 @@ public class GlobalExceptionHandler {
         String errors = ex.getBindingResult().getFieldErrors().stream()
                 .map(FieldError::getDefaultMessage)
                 .collect(Collectors.joining(", "));
+        log.warn("[GlobalExceptionHandler.handleValidation] fields={}, errors={}",
+                ex.getBindingResult().getFieldErrors().stream().map(FieldError::getField).collect(Collectors.joining(", ")),
+                errors);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.error(ResponseCode.VALIDATION_ERROR, errors));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneral(Exception ex) {
-        log.error("Unexpected error: ", ex);
+        log.error("[GlobalExceptionHandler.handleGeneral] exception={}, message={}", ex.getClass().getName(), ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
     }
