@@ -52,8 +52,8 @@ public class ApiKeyFilter extends OncePerRequestFilter {
 
             Map<String, Object> errorDetails = new HashMap<>();
             errorDetails.put("success", false);
+            errorDetails.put("code", 2401);
             errorDetails.put("message", "Invalid or missing X-API-Key header");
-            errorDetails.put("code", 401);
 
             objectMapper.writeValue(response.getWriter(), errorDetails);
         }

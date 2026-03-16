@@ -1,11 +1,18 @@
 package com.eduquiz.common.exception;
 
-/**
- * Custom exception.
- * TODO: Implement extends RuntimeException
- */
-public class BadRequestException extends RuntimeException {
+import com.eduquiz.common.constant.ResponseCode;
+
+public class BadRequestException extends BaseException {
+
+    public BadRequestException(ResponseCode responseCode) {
+        super(responseCode);
+    }
+
+    public BadRequestException(ResponseCode responseCode, String message) {
+        super(responseCode, message);
+    }
+
     public BadRequestException(String message) {
-        super(message);
+        super(ResponseCode.BAD_REQUEST, message);
     }
 }

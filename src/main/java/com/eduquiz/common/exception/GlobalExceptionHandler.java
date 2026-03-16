@@ -1,5 +1,6 @@
 package com.eduquiz.common.exception;
 
+import com.eduquiz.common.constant.ResponseCode;
 import com.eduquiz.common.dto.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -17,40 +18,23 @@ import java.util.stream.Collectors;
 @Slf4j
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ApiResponse<Void>> handleNotFound(ResourceNotFoundException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse.error(ex.getMessage()));
-    }
-
-    @ExceptionHandler(BadRequestException.class)
-    public ResponseEntity<ApiResponse<Void>> handleBadRequest(BadRequestException ex) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error(ex.getMessage()));
-    }
-
-    @ExceptionHandler(DuplicateResourceException.class)
-    public ResponseEntity<ApiResponse<Void>> handleDuplicate(DuplicateResourceException ex) {
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(ApiResponse.error(ex.getMessage()));
-    }
-
-    @ExceptionHandler(OtpVerificationException.class)
-    public ResponseEntity<ApiResponse<Void>> handleOtp(OtpVerificationException ex) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error(ex.getMessage()));
+    @ExceptionHandler(BaseException.class)
+    public ResponseEntity<ApiResponse<Void>> handleBaseException(BaseException ex) {
+        ResponseCode rc = ex.getResponseCode();
+        return ResponseEntity.status(resolveHttpStatus(rc))
+                .body(ApiResponse.error(rc, ex.getMessage()));
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(ApiResponse.error("Bạn không có quyền truy cập tài nguyên này"));
+                .body(ApiResponse.error(ResponseCode.AUTH_FORBIDDEN));
     }
 
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ApiResponse<Void>> handleAuthentication(AuthenticationException ex) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.error("Xác thực thất bại. Vui lòng đăng nhập lại."));
+                .body(ApiResponse.error(ResponseCode.AUTH_UNAUTHORIZED));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -59,13 +43,41 @@ public class GlobalExceptionHandler {
                 .map(FieldError::getDefaultMessage)
                 .collect(Collectors.joining(", "));
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error(errors));
+                .body(ApiResponse.error(ResponseCode.VALIDATION_ERROR, errors));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneral(Exception ex) {
         log.error("Unexpected error: ", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error("Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau."));
+                .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
+    }
+
+    private HttpStatus resolveHttpStatus(ResponseCode rc) {
+        int code = rc.getCode();
+        if (code >= 2401 && code <= 2406) return HttpStatus.UNAUTHORIZED;
+        if (code >= 2407 && code <= 2409) return HttpStatus.FORBIDDEN;
+
+        return switch (code % 1000 / 100) {
+            case 4 -> {
+                int suffix = code % 100;
+                if (suffix == 1) yield HttpStatus.UNAUTHORIZED;
+                if (suffix == 4) yield HttpStatus.NOT_FOUND;
+                if (suffix == 9) yield HttpStatus.CONFLICT;
+                if (suffix == 29) yield HttpStatus.TOO_MANY_REQUESTS;
+                yield HttpStatus.BAD_REQUEST;
+            }
+            case 5 -> {
+                if (code >= 2500 && code <= 2599) {
+                    if (code == 2504 || code == 2505) yield HttpStatus.TOO_MANY_REQUESTS;
+                    if (code == 2506) yield HttpStatus.NOT_FOUND;
+                    if (code == 2507) yield HttpStatus.CONFLICT;
+                    if (code == 2508) yield HttpStatus.INTERNAL_SERVER_ERROR;
+                    yield HttpStatus.BAD_REQUEST;
+                }
+                yield HttpStatus.INTERNAL_SERVER_ERROR;
+            }
+            default -> HttpStatus.OK;
+        };
     }
 }
