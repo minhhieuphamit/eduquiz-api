@@ -3,6 +3,7 @@ package com.eduquiz.feature.subject.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -25,6 +26,10 @@ public class Subject {
 
     @Column(name = "default_duration_minutes")
     private Integer defaultDurationMinutes;
+
+    @Builder.Default
+    @Column(name = "is_active", nullable = false)
+    private Boolean isActive = true;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
