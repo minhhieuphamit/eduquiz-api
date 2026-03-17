@@ -80,12 +80,18 @@ public enum ResponseCode {
     // 4000–4999  Subject / Chapter / Question / Exam
     // ══════════════════════════════════════════════════════
     SUBJECT_CREATED_SUCCESS(4000, "Subject created successfully"),
+    SUBJECT_FETCH_SUCCESS(4005, "Subject fetched successfully"),
+    SUBJECT_LIST_SUCCESS(4006, "Subject list fetched successfully"),
+    SUBJECT_UPDATED_SUCCESS(4007, "Subject updated successfully"),
+    SUBJECT_DELETED_SUCCESS(4008, "Subject deleted successfully"),
+
     CHAPTER_CREATED_SUCCESS(4001, "Chapter created successfully"),
     QUESTION_CREATED_SUCCESS(4002, "Question created successfully"),
     EXAM_CREATED_SUCCESS(4003, "Exam created successfully"),
     EXAM_UPDATED_SUCCESS(4004, "Exam updated successfully"),
 
     SUBJECT_NOT_FOUND(4401, "Subject not found"),
+    SUBJECT_NAME_DUPLICATE(4409, "Subject name already exists"),
     CHAPTER_NOT_FOUND(4402, "Chapter not found"),
     QUESTION_NOT_FOUND(4403, "Question not found"),
     EXAM_NOT_FOUND(4404, "Exam not found"),

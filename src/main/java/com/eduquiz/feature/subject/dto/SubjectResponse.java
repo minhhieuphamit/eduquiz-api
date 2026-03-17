@@ -1,7 +1,23 @@
 package com.eduquiz.feature.subject.dto;
 
-/**
- * Fields: id, name, description, icon, defaultDurationMinutes. TODO: Implement @Data
- */
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class SubjectResponse {
+    private UUID id;
+    private String name;
+    private String description;
+    private String icon;
+    private Integer defaultDurationMinutes;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }
