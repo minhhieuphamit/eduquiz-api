@@ -78,9 +78,20 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
 
+# ── File Upload ──
+file:
+  upload-dir: ${FILE_UPLOAD_DIR:./uploads}
+  max-size-mb: 5
+  allowed-types: image/jpeg,image/png,image/gif,image/webp
+  base-url: ${FILE_BASE_URL:http://localhost:8080/uploads}
+
 # ── Server ──
 server:
   port: 8080
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 10MB
 
 # ── Frontend ──
 app:
