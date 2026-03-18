@@ -38,3 +38,7 @@ out/
 
 ### Environment ###
 .env
+.env.*
+
+### Uploads (runtime) ###
+/uploads/

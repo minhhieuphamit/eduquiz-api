@@ -14,9 +14,6 @@ public class SubjectRequest {
 
     private String description;
 
-    @Size(max = 255, message = "Icon không được vượt quá 255 ký tự")
-    private String icon;
-
     @Min(value = 1, message = "Thời lượng mặc định phải lớn hơn 0")
     private Integer defaultDurationMinutes;
 }

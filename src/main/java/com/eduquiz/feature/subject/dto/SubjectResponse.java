@@ -16,7 +16,7 @@ public class SubjectResponse {
     private UUID id;
     private String name;
     private String description;
-    private String icon;
+    private String imageUrl;
     private Integer defaultDurationMinutes;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

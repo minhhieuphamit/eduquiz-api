@@ -5,6 +5,7 @@ import com.eduquiz.common.dto.ApiResponse;
 import com.eduquiz.common.dto.PageResponse;
 import com.eduquiz.common.exception.DuplicateResourceException;
 import com.eduquiz.common.exception.ResourceNotFoundException;
+import com.eduquiz.common.service.FileStorageService;
 import com.eduquiz.feature.subject.dto.SubjectRequest;
 import com.eduquiz.feature.subject.dto.SubjectResponse;
 import com.eduquiz.feature.subject.entity.Subject;
@@ -15,6 +16,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.UUID;
 
@@ -24,6 +26,9 @@ import java.util.UUID;
 public class SubjectService {
 
     private final SubjectRepository subjectRepository;
+    private final FileStorageService fileStorageService;
+
+    private static final String UPLOAD_SUBFOLDER = "subjects";
 
     // ══════════════════════════════════════════════════════
     // GET ALL SUBJECTS (paginated)
@@ -61,18 +66,24 @@ public class SubjectService {
     // ══════════════════════════════════════════════════════
 
     @Transactional
-    public ApiResponse<SubjectResponse> createSubject(SubjectRequest request) {
-        log.info("[SubjectService.createSubject] START - name={}", request.getName());
+    public ApiResponse<SubjectResponse> createSubject(SubjectRequest request, MultipartFile image) {
+        log.info("[SubjectService.createSubject] START - name={}, hasImage={}", request.getName(), image != null && !image.isEmpty());
 
         if (subjectRepository.existsByNameAndIsActiveTrue(request.getName())) {
             log.warn("[SubjectService.createSubject] FAILED - duplicate name: {}", request.getName());
             throw new DuplicateResourceException(ResponseCode.SUBJECT_NAME_DUPLICATE);
         }
 
+        String imageRelativePath = null;
+        if (image != null && !image.isEmpty()) {
+            imageRelativePath = fileStorageService.store(image, UPLOAD_SUBFOLDER);
+            log.debug("[SubjectService.createSubject] Image uploaded: {}", imageRelativePath);
+        }
+
         Subject subject = Subject.builder()
                 .name(request.getName())
                 .description(request.getDescription())
-                .icon(request.getIcon())
+                .imageUrl(imageRelativePath)
                 .defaultDurationMinutes(request.getDefaultDurationMinutes())
                 .build();
         subjectRepository.save(subject);
@@ -86,8 +97,8 @@ public class SubjectService {
     // ══════════════════════════════════════════════════════
 
     @Transactional
-    public ApiResponse<SubjectResponse> updateSubject(UUID id, SubjectRequest request) {
-        log.info("[SubjectService.updateSubject] START - id={}, name={}", id, request.getName());
+    public ApiResponse<SubjectResponse> updateSubject(UUID id, SubjectRequest request, MultipartFile image) {
+        log.info("[SubjectService.updateSubject] START - id={}, name={}, hasNewImage={}", id, request.getName(), image != null && !image.isEmpty());
 
         Subject subject = subjectRepository.findByIdAndIsActiveTrue(id)
                 .orElseThrow(() -> {
@@ -100,9 +111,21 @@ public class SubjectService {
             throw new DuplicateResourceException(ResponseCode.SUBJECT_NAME_DUPLICATE);
         }
 
+        // Upload ảnh mới → xoá ảnh cũ
+        if (image != null && !image.isEmpty()) {
+            String oldImagePath = subject.getImageUrl();
+            String newImagePath = fileStorageService.store(image, UPLOAD_SUBFOLDER);
+            subject.setImageUrl(newImagePath);
+            log.debug("[SubjectService.updateSubject] Image replaced: old={}, new={}", oldImagePath, newImagePath);
+
+            // Xoá ảnh cũ sau khi upload thành công
+            if (oldImagePath != null) {
+                fileStorageService.delete(oldImagePath);
+            }
+        }
+
         subject.setName(request.getName());
         subject.setDescription(request.getDescription());
-        subject.setIcon(request.getIcon());
         subject.setDefaultDurationMinutes(request.getDefaultDurationMinutes());
         subjectRepository.save(subject);
 
@@ -127,6 +150,7 @@ public class SubjectService {
         subject.setIsActive(false);
         subjectRepository.save(subject);
 
+        // Không xoá file ảnh khi soft delete (có thể restore lại)
         log.info("[SubjectService.deleteSubject] SUCCESS - id={}, name={}, softDeleted=true", id, subject.getName());
         return ApiResponse.ok(ResponseCode.SUBJECT_DELETED_SUCCESS);
     }
@@ -140,7 +164,7 @@ public class SubjectService {
                 .id(subject.getId())
                 .name(subject.getName())
                 .description(subject.getDescription())
-                .icon(subject.getIcon())
+                .imageUrl(fileStorageService.toFullUrl(subject.getImageUrl()))
                 .defaultDurationMinutes(subject.getDefaultDurationMinutes())
                 .createdAt(subject.getCreatedAt())
                 .updatedAt(subject.getUpdatedAt())

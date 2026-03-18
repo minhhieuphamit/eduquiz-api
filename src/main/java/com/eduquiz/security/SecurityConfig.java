@@ -74,6 +74,8 @@ public class SecurityConfig {
                                 "/api/v1/auth/forgot-password",
                                 "/api/v1/auth/reset-password"
                         ).permitAll()
+                        // Static uploads (images)
+                        .requestMatchers("/uploads/**").permitAll()
                         // Public GET endpoints
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/subjects",

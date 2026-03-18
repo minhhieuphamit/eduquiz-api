@@ -22,7 +22,9 @@ public class Subject {
     private String name;
 
     private String description;
-    private String icon;
+
+    @Column(name = "image_url", length = 500)
+    private String imageUrl;
 
     @Column(name = "default_duration_minutes")
     private Integer defaultDurationMinutes;
