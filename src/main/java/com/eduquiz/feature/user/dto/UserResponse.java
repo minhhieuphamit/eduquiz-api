@@ -7,12 +7,14 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserResponse {
+    private UUID id;
     private String email;
     private String firstName;
     private String lastName;
@@ -22,4 +24,5 @@ public class UserResponse {
     private Boolean isActive;
     private Boolean emailVerified;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }
