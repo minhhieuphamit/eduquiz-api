@@ -1,10 +1,17 @@
 package com.eduquiz.feature.stats.dto;
 
-/**
- * Thống kê hệ thống (Admin).
- * Fields: totalUsers, totalStudents, totalTeachers, totalQuestions,
- * totalExams, totalSessions, avgScore, hardestQuestions(List)
- * TODO: @Data @Builder
- */
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class AdminStatsResponse {
+    private long totalUsers;
+    private long totalSubjects;
+    private long totalQuestions;
+    private long totalExams;
 }

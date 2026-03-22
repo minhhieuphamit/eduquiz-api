@@ -156,6 +156,11 @@ public enum ResponseCode {
     IMPORT_PARTIAL_SUCCESS(7405, "Import partially successful"),
 
     // ══════════════════════════════════════════════════════
+    // 8000–8999  Statistics
+    // ══════════════════════════════════════════════════════
+    STATS_ADMIN_OVERVIEW_SUCCESS(8000, "Admin stats fetched successfully"),
+
+    // ══════════════════════════════════════════════════════
     // 9000–9999  Async / Background
     // ══════════════════════════════════════════════════════
     EVENT_PUBLISH_FAILED(9001, "Failed to publish event"),
