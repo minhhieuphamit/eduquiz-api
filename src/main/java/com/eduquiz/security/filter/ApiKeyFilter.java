@@ -35,9 +35,9 @@ public class ApiKeyFilter extends OncePerRequestFilter {
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
 
-        // Skip check for Swagger UI and API Docs
+        // Skip check for Swagger UI, API Docs, and static uploads
         String path = request.getServletPath();
-        if (path.startsWith("/swagger-ui") || path.startsWith("/v3/api-docs") || path.startsWith("/actuator")) {
+        if (path.startsWith("/swagger-ui") || path.startsWith("/v3/api-docs") || path.startsWith("/actuator") || path.startsWith("/uploads")) {
             filterChain.doFilter(request, response);
             return;
         }
