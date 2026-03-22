@@ -12,10 +12,12 @@ import com.eduquiz.feature.auth.repository.RoleRepository;
 import com.eduquiz.feature.auth.repository.UserRepository;
 import com.eduquiz.feature.user.dto.UpdateUserRoleRequest;
 import com.eduquiz.feature.user.dto.UserResponse;
+import com.eduquiz.common.specification.UserSpecification;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,7 +41,11 @@ public class UserService {
         log.info("[UserService.getAllUsers] START - keyword={}, role={}, isActive={}, page={}, size={}",
                 keyword, roleName, isActive, pageable.getPageNumber(), pageable.getPageSize());
 
-        Page<UserResponse> page = userRepository.searchUsers(keyword, roleName, isActive, pageable)
+        Specification<User> spec = UserSpecification.hasKeyword(keyword)
+                .and(UserSpecification.hasRole(roleName))
+                .and(UserSpecification.hasIsActive(isActive));
+
+        Page<UserResponse> page = userRepository.findAll(spec, pageable)
                 .map(this::toResponse);
 
         log.info("[UserService.getAllUsers] SUCCESS - totalElements={}, totalPages={}", page.getTotalElements(), page.getTotalPages());
