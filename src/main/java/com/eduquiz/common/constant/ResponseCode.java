@@ -69,12 +69,21 @@ public enum ResponseCode {
     USER_CREATED_SUCCESS(3000, "User created successfully"),
     USER_FETCH_SUCCESS(3001, "User fetched successfully"),
     USER_UPDATED_SUCCESS(3002, "User updated successfully"),
+    USER_LIST_SUCCESS(3003, "User list fetched successfully"),
+    USER_ROLE_UPDATED(3004, "User role updated successfully"),
+    USER_DEACTIVATED(3005, "User deactivated successfully"),
+    USER_ACTIVATED(3006, "User activated successfully"),
+    USER_DELETED(3007, "User deleted successfully"),
 
     USER_NOT_FOUND(3401, "User not found"),
     EMAIL_ALREADY_EXISTS(3402, "Email already exists"),
     USERNAME_ALREADY_EXISTS(3403, "Username already exists"),
     ROLE_NOT_FOUND(3404, "Role not found"),
     INSUFFICIENT_ROLE(3405, "Insufficient role"),
+    USER_CANNOT_DEACTIVATE_SELF(3406, "Cannot deactivate your own account"),
+    USER_CANNOT_CHANGE_OWN_ROLE(3407, "Cannot change your own role"),
+    USER_ALREADY_ACTIVE(3408, "User is already active"),
+    USER_ALREADY_INACTIVE(3409, "User is already inactive"),
 
     // ══════════════════════════════════════════════════════
     // 4000–4999  Subject / Chapter / Question / Exam
