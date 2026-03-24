@@ -1,6 +1,5 @@
-package com.eduquiz.feature.chapter.entity;
+package com.eduquiz.feature.question.entity;
 
-import com.eduquiz.feature.subject.entity.Subject;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
@@ -8,31 +7,31 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "chapters")
+@Table(name = "question_options")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Chapter {
+public class QuestionOption {
     @Id
     @UuidGenerator
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "subject_id", nullable = false)
-    private Subject subject;
+    @JoinColumn(name = "question_id", nullable = false)
+    private Question question;
 
-    @Column(nullable = false)
-    private String name;
+    @Column(nullable = false, length = 5)
+    private String label;
 
-    private String description;
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String content;
+
+    @Column(name = "is_correct")
+    private Boolean isCorrect;
 
     @Column(name = "order_index")
     private Integer orderIndex;
-
-    @Column(name = "is_active")
-    @Builder.Default
-    private Boolean isActive = true;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
