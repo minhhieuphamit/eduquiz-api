@@ -95,13 +95,27 @@ public enum ResponseCode {
     SUBJECT_DELETED_SUCCESS(4008, "Subject deleted successfully"),
 
     CHAPTER_CREATED_SUCCESS(4001, "Chapter created successfully"),
+    CHAPTER_FETCH_SUCCESS(4010, "Chapter fetched successfully"),
+    CHAPTER_LIST_SUCCESS(4011, "Chapter list fetched successfully"),
+    CHAPTER_UPDATED_SUCCESS(4012, "Chapter updated successfully"),
+    CHAPTER_DELETED_SUCCESS(4013, "Chapter deleted successfully"),
+
     QUESTION_CREATED_SUCCESS(4002, "Question created successfully"),
+    QUESTION_FETCH_SUCCESS(4020, "Question fetched successfully"),
+    QUESTION_LIST_SUCCESS(4021, "Question list fetched successfully"),
+    QUESTION_UPDATED_SUCCESS(4022, "Question updated successfully"),
+    QUESTION_DELETED_SUCCESS(4023, "Question deleted successfully"),
+
     EXAM_CREATED_SUCCESS(4003, "Exam created successfully"),
     EXAM_UPDATED_SUCCESS(4004, "Exam updated successfully"),
+    EXAM_FETCH_SUCCESS(4030, "Exam fetched successfully"),
+    EXAM_LIST_SUCCESS(4031, "Exam list fetched successfully"),
+    EXAM_DELETED_SUCCESS(4032, "Exam deleted successfully"),
 
     SUBJECT_NOT_FOUND(4401, "Subject not found"),
     SUBJECT_NAME_DUPLICATE(4409, "Subject name already exists"),
     CHAPTER_NOT_FOUND(4402, "Chapter not found"),
+    CHAPTER_NAME_DUPLICATE(4410, "Chapter name already exists in this subject"),
     QUESTION_NOT_FOUND(4403, "Question not found"),
     EXAM_NOT_FOUND(4404, "Exam not found"),
     EXAM_NO_QUESTIONS(4405, "Exam must contain at least one question"),

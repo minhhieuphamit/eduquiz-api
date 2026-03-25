@@ -79,7 +79,11 @@ public class SecurityConfig {
                         // Public GET endpoints
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/subjects",
-                                "/api/v1/subjects/**"
+                                "/api/v1/subjects/**",
+                                "/api/v1/chapters/*/questions",
+                                "/api/v1/questions/*",
+                                "/api/v1/exams",
+                                "/api/v1/exams/*"
                         ).permitAll()
                         // Swagger & System
                         .requestMatchers(

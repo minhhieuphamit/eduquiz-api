@@ -39,6 +39,21 @@ public class Exam {
     @Column(name = "random_mode", nullable = false)
     private RandomMode randomMode;
 
+    private Integer year;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "exam_type")
+    @Builder.Default
+    private ExamType examType = ExamType.PRACTICE;
+
+    @Column(name = "is_active")
+    @Builder.Default
+    private Boolean isActive = true;
+
+    @Column(name = "total_questions")
+    @Builder.Default
+    private Integer totalQuestions = 0;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
