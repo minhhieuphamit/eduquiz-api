@@ -106,6 +106,9 @@ public enum ResponseCode {
     QUESTION_UPDATED_SUCCESS(4022, "Question updated successfully"),
     QUESTION_DELETED_SUCCESS(4023, "Question deleted successfully"),
 
+    QUESTION_SHARED_SUCCESS(4050, "Question shared to all teachers"),
+    QUESTION_UNSHARED_SUCCESS(4051, "Question unshared from all teachers"),
+
     EXAM_CREATED_SUCCESS(4003, "Exam created successfully"),
     EXAM_UPDATED_SUCCESS(4004, "Exam updated successfully"),
     EXAM_FETCH_SUCCESS(4030, "Exam fetched successfully"),
@@ -122,6 +125,8 @@ public enum ResponseCode {
     EXAM_INVALID_DURATION(4406, "Invalid exam duration"),
     QUESTION_INVALID_CORRECT_ANSWER(4407, "Invalid correct answer"),
     EXAM_ALREADY_PUBLISHED(4408, "Exam already published"),
+
+    QUESTION_NOT_AUTHORIZED(4450, "Not authorized to modify this question"),
 
     // ══════════════════════════════════════════════════════
     // 5000–5999  Room

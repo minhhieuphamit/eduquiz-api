@@ -76,6 +76,9 @@ public class SecurityConfig {
                         ).permitAll()
                         // Static uploads (images)
                         .requestMatchers("/uploads/**").permitAll()
+                        // Authenticated endpoints (must be BEFORE public wildcards)
+                        .requestMatchers(HttpMethod.GET, "/api/v1/questions/my").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/questions/*/share").authenticated()
                         // Public GET endpoints
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/subjects",
