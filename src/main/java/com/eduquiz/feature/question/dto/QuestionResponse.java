@@ -26,6 +26,17 @@ public class QuestionResponse {
     private Difficulty difficulty;
     private String explanation;
     private List<OptionResponse> options;
+
+    // Audit fields
+    private UUID createdById;
+    private String createdByName;
+    private UUID updatedById;
+    private String updatedByName;
+
+    // Context fields (populated based on current user)
+    private Boolean isOwner;
+    private Boolean isShared;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
