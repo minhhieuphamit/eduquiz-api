@@ -114,6 +114,8 @@ public enum ResponseCode {
     EXAM_FETCH_SUCCESS(4030, "Exam fetched successfully"),
     EXAM_LIST_SUCCESS(4031, "Exam list fetched successfully"),
     EXAM_DELETED_SUCCESS(4032, "Exam deleted successfully"),
+    EXAM_SHARED_SUCCESS(4033, "Exam shared to all teachers"),
+    EXAM_UNSHARED_SUCCESS(4034, "Exam unshared from all teachers"),
 
     SUBJECT_NOT_FOUND(4401, "Subject not found"),
     SUBJECT_NAME_DUPLICATE(4409, "Subject name already exists"),

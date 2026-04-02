@@ -246,6 +246,29 @@ public class ExamService {
         return (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
     }
 
+    // ══════════════════════════════════════════════════════
+    // TOGGLE SHARE
+    // ══════════════════════════════════════════════════════
+
+    @Transactional
+    public ApiResponse<ExamResponse> toggleShare(UUID examId) {
+        log.info("[ExamService.toggleShare] START - examId={}", examId);
+        Exam exam = findActiveExam(examId);
+
+        User currentUser = getCurrentUser();
+        if (!exam.getCreator().getId().equals(currentUser.getId())) {
+            throw new BadRequestException(ResponseCode.EXAM_NOT_FOUND, "Bạn không phải chủ sở hữu đề thi.");
+        }
+
+        boolean newValue = !Boolean.TRUE.equals(exam.getIsShared());
+        exam.setIsShared(newValue);
+        examRepository.save(exam);
+
+        log.info("[ExamService.toggleShare] SUCCESS - examId={}, isShared={}", examId, newValue);
+        ResponseCode code = newValue ? ResponseCode.EXAM_SHARED_SUCCESS : ResponseCode.EXAM_UNSHARED_SUCCESS;
+        return ApiResponse.ok(code, toResponse(exam));
+    }
+
     private ExamResponse toResponse(Exam exam) {
         return ExamResponse.builder()
                 .id(exam.getId())
@@ -258,7 +281,9 @@ public class ExamService {
                 .randomMode(exam.getRandomMode())
                 .year(exam.getYear())
                 .examType(exam.getExamType())
+                .createdById(exam.getCreator().getId())
                 .createdByName(exam.getCreator().getFullName())
+                .isShared(exam.getIsShared())
                 .createdAt(exam.getCreatedAt())
                 .updatedAt(exam.getUpdatedAt())
                 .build();

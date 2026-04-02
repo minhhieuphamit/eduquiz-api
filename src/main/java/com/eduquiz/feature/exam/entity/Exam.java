@@ -50,6 +50,10 @@ public class Exam {
     @Builder.Default
     private Boolean isActive = true;
 
+    @Column(name = "is_shared")
+    @Builder.Default
+    private Boolean isShared = false;
+
     @Column(name = "total_questions")
     @Builder.Default
     private Integer totalQuestions = 0;

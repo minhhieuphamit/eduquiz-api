@@ -1,5 +1,6 @@
 package com.eduquiz.feature.examroom.entity;
 
+import com.eduquiz.feature.auth.entity.User;
 import com.eduquiz.feature.exam.entity.Exam;
 import jakarta.persistence.*;
 import lombok.*;
@@ -18,9 +19,15 @@ public class ExamRoom {
     @UuidGenerator
     private UUID id;
 
+    private String title;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "exam_id", nullable = false)
     private Exam exam;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "teacher_id")
+    private User teacher;
 
     @Column(name = "room_code", unique = true, nullable = false, length = 10)
     private String roomCode;
@@ -33,7 +40,11 @@ public class ExamRoom {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private RoomStatus status;
+    @Builder.Default
+    private RoomStatus status = RoomStatus.SCHEDULED;
+
+    @Column(name = "max_students")
+    private Integer maxStudents;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

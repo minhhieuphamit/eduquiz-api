@@ -343,6 +343,7 @@ public class AuthService {
         log.info("[AuthService.getCurrentUser] START - email={}, userId={}", user.getEmail(), user.getId());
 
         UserInfoResponse userInfo = UserInfoResponse.builder()
+                .id(user.getId())
                 .email(user.getEmail())
                 .firstName(user.getFirstName())
                 .lastName(user.getLastName())
@@ -474,6 +475,7 @@ public class AuthService {
         userRepository.save(user);
 
         UserInfoResponse userInfo = UserInfoResponse.builder()
+                .id(user.getId())
                 .email(user.getEmail())
                 .firstName(user.getFirstName())
                 .lastName(user.getLastName())

@@ -94,4 +94,14 @@ public class ExamController {
         log.info("[ExamController.deleteExam] SUCCESS - code={}", response.getCode());
         return ResponseEntity.ok(response);
     }
+
+    @PutMapping("/exams/{examId}/share")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
+    @Operation(summary = "Toggle share đề thi cho tất cả GV (ADMIN, TEACHER)")
+    public ResponseEntity<ApiResponse<ExamResponse>> toggleShare(@PathVariable UUID examId) {
+        log.info("[ExamController.toggleShare] START - examId={}", examId);
+        ApiResponse<ExamResponse> response = examService.toggleShare(examId);
+        log.info("[ExamController.toggleShare] SUCCESS - code={}", response.getCode());
+        return ResponseEntity.ok(response);
+    }
 }

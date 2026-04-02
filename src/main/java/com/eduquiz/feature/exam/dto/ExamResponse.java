@@ -27,7 +27,9 @@ public class ExamResponse {
     private RandomMode randomMode;
     private Integer year;
     private ExamType examType;
+    private UUID createdById;
     private String createdByName;
+    private Boolean isShared;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

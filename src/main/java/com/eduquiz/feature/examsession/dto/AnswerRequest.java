@@ -1,7 +1,20 @@
 package com.eduquiz.feature.examsession.dto;
 
-/**
- * Fields: questionId, selectedAnswer(A/B/C/D). TODO: @Data
- */
+import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.UUID;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class AnswerRequest {
+
+    @NotNull(message = "Câu hỏi không được để trống")
+    private UUID questionId;
+
+    /** Option label: "A", "B", "C", "D" */
+    private String selectedAnswer;
 }
