@@ -1,7 +1,13 @@
 package com.eduquiz.feature.examroom.dto;
 
-/**
- * Fields: roomCode(@Size(6)). TODO: @Data
- */
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import lombok.Data;
+
+@Data
 public class JoinRoomRequest {
+
+    @NotBlank
+    @Size(min = 4, max = 10)
+    private String roomCode;
 }

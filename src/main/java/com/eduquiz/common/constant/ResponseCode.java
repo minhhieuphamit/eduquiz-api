@@ -152,6 +152,9 @@ public enum ResponseCode {
     EXAM_SUBMIT_SUCCESS(6002, "Exam submitted successfully"),
     EXAM_AUTO_SUBMIT_SUCCESS(6003, "Exam auto submitted"),
     EXAM_RESULT_FETCH_SUCCESS(6004, "Result fetched successfully"),
+    EXAM_SESSION_FETCH_SUCCESS(6005, "Exam session fetched successfully"),
+    EXAM_SESSION_LIST_SUCCESS(6006, "Exam session list fetched successfully"),
+    EXAM_ANSWERS_SAVED(6007, "Answers saved successfully"),
 
     EXAM_SESSION_NOT_FOUND(6401, "Exam session not found"),
     EXAM_SESSION_ALREADY_STARTED(6402, "Exam session already started"),
