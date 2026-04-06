@@ -2,10 +2,13 @@ package com.eduquiz.feature.exam.controller;
 
 import com.eduquiz.common.dto.ApiResponse;
 import com.eduquiz.common.dto.PageResponse;
+import com.eduquiz.feature.auth.entity.User;
 import com.eduquiz.feature.exam.dto.CreateExamRequest;
 import com.eduquiz.feature.exam.dto.ExamResponse;
 import com.eduquiz.feature.exam.entity.ExamType;
 import com.eduquiz.feature.exam.service.ExamService;
+import com.eduquiz.feature.examsession.dto.ExamResultResponse;
+import com.eduquiz.feature.examsession.service.ExamSessionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -17,6 +20,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -29,6 +33,7 @@ import java.util.UUID;
 public class ExamController {
 
     private final ExamService examService;
+    private final ExamSessionService examSessionService;
 
     @GetMapping("/exams")
     @Operation(summary = "Lấy tất cả đề thi (public, phân trang)")
@@ -93,5 +98,16 @@ public class ExamController {
         ApiResponse<Void> response = examService.deleteExam(examId);
         log.info("[ExamController.deleteExam] SUCCESS - code={}", response.getCode());
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/exams/{examId}/results")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
+    @Operation(summary = "Xem kết quả tất cả học sinh theo đề thi (TEACHER/ADMIN)")
+    public ResponseEntity<ApiResponse<PageResponse<ExamResultResponse>>> getExamResults(
+            @PathVariable UUID examId,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
+            @AuthenticationPrincipal User currentUser) {
+        log.info("[ExamController.getExamResults] examId={}", examId);
+        return ResponseEntity.ok(examSessionService.getExamResults(examId, currentUser, pageable));
     }
 }

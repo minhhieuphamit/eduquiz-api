@@ -79,6 +79,10 @@ public class SecurityConfig {
                         // Authenticated endpoints (must be BEFORE public wildcards)
                         .requestMatchers(HttpMethod.GET, "/api/v1/questions/my").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/v1/questions/*/share").authenticated()
+                        // Room endpoints — all require authentication (students are logged in)
+                        .requestMatchers("/api/v1/rooms/**").authenticated()
+                        // Exam session endpoints — all require authentication
+                        .requestMatchers("/api/v1/exam-sessions/**").authenticated()
                         // Public GET endpoints
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/subjects",

@@ -1,9 +1,11 @@
 package com.eduquiz.feature.examroom.entity;
 
+import com.eduquiz.feature.auth.entity.User;
 import com.eduquiz.feature.exam.entity.Exam;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -14,13 +16,21 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ExamRoom {
+
     @Id
     @UuidGenerator
     private UUID id;
 
+    @Column(name = "title", nullable = false)
+    private String title;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "exam_id", nullable = false)
     private Exam exam;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by", nullable = false)
+    private User createdBy;
 
     @Column(name = "room_code", unique = true, nullable = false, length = 10)
     private String roomCode;
@@ -30,6 +40,13 @@ public class ExamRoom {
 
     @Column(name = "end_time", nullable = false)
     private LocalDateTime endTime;
+
+    @Column(name = "max_students")
+    private Integer maxStudents;
+
+    /** null = use exam's durationMinutes; non-null overrides (for PRACTICE rooms). */
+    @Column(name = "duration_minutes")
+    private Integer durationMinutes;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
