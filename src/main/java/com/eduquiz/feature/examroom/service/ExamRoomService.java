@@ -31,10 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -150,6 +147,9 @@ public class ExamRoomService {
         ExamRoom room = roomRepository.findByRoomCode(code)
                 .orElseThrow(() -> new ResourceNotFoundException(ResponseCode.ROOM_NOT_FOUND));
 
+        if (room.getStatus() == RoomStatus.IN_PROGRESS) {
+            throw new BadRequestException(ResponseCode.ROOM_IN_PROGRESS);
+        }
         if (room.getStatus() == RoomStatus.CLOSED) {
             throw new BadRequestException(ResponseCode.ROOM_ALREADY_CLOSED);
         }
@@ -191,7 +191,8 @@ public class ExamRoomService {
     // ══════════════════════════════════════════════════════
 
     @Transactional
-    public ApiResponse<RoomResponse> updateRoomStatus(UUID roomId, String newStatusStr, User currentUser) {
+    public ApiResponse<RoomResponse> updateRoomStatus(UUID roomId, String newStatusStr,
+                                                      LocalDateTime newEndTime, User currentUser) {
         ExamRoom room = findRoom(roomId);
         checkTeacherAccess(room, currentUser);
 
@@ -204,6 +205,17 @@ public class ExamRoomService {
         }
 
         validateStatusTransition(room.getStatus(), newStatus);
+
+        // When reopening a CLOSED room, require a new future endTime to prevent
+        // the scheduler from immediately re-closing the room.
+        if (room.getStatus() == RoomStatus.CLOSED && newStatus == RoomStatus.OPEN) {
+            if (newEndTime == null || !newEndTime.isAfter(LocalDateTime.now())) {
+                throw new BadRequestException(ResponseCode.BAD_REQUEST,
+                        "A future endTime is required when reopening a closed room");
+            }
+            room.setEndTime(newEndTime);
+        }
+
         room.setStatus(newStatus);
         roomRepository.save(room);
 
@@ -228,12 +240,16 @@ public class ExamRoomService {
 
         int totalQuestions = examQuestionRepository.findByExam(room.getExam()).size();
 
-        // Map userId → session for quick lookup (prefer the most-recent start time)
-        Map<UUID, ExamSession> sessionByUser = sessions.stream()
-                .collect(Collectors.toMap(
+        // Group all sessions by userId (sorted oldest → newest per user)
+        Map<UUID, List<ExamSession>> sessionsByUser = sessions.stream()
+                .collect(Collectors.groupingBy(
                         s -> s.getUser().getId(),
-                        s -> s,
-                        (s1, s2) -> s1.getStartTime().isAfter(s2.getStartTime()) ? s1 : s2
+                        Collectors.collectingAndThen(
+                                Collectors.toList(),
+                                list -> list.stream()
+                                        .sorted(Comparator.comparing(ExamSession::getStartTime))
+                                        .collect(Collectors.toList())
+                        )
                 ));
 
         Set<SessionStatus> submittedStatuses = Set.of(
@@ -242,33 +258,55 @@ public class ExamRoomService {
         List<RoomResultResponse.ParticipantResult> results = participants.stream()
                 .map(p -> {
                     UUID userId = p.getUser().getId();
-                    ExamSession session = sessionByUser.get(userId);
+                    List<ExamSession> userSessions = sessionsByUser.getOrDefault(userId, List.of());
 
-                    String status;
-                    if (session == null) {
-                        status = "WAITING";
-                    } else if (session.getStatus() == SessionStatus.IN_PROGRESS) {
-                        status = "STARTED";
-                    } else if (submittedStatuses.contains(session.getStatus())) {
-                        status = "SUBMITTED";
+                    List<RoomResultResponse.AttemptResult> attempts;
+                    if (userSessions.isEmpty()) {
+                        // No session yet — single WAITING entry
+                        attempts = List.of(RoomResultResponse.AttemptResult.builder()
+                                .attemptNumber(1)
+                                .status("WAITING")
+                                .totalQuestions(totalQuestions)
+                                .build());
                     } else {
-                        status = session.getStatus().name();
+                        int[] counter = {0};
+                        attempts = userSessions.stream()
+                                .map(s -> {
+                                    counter[0]++;
+                                    String status;
+                                    if (s.getStatus() == SessionStatus.IN_PROGRESS) {
+                                        status = "STARTED";
+                                    } else if (submittedStatuses.contains(s.getStatus())) {
+                                        status = "SUBMITTED";
+                                    } else {
+                                        status = s.getStatus().name();
+                                    }
+                                    return RoomResultResponse.AttemptResult.builder()
+                                            .sessionId(s.getId())
+                                            .attemptNumber(counter[0])
+                                            .status(status)
+                                            .score(s.getScore())
+                                            .correctCount(s.getCorrectCount())
+                                            .totalQuestions(totalQuestions)
+                                            .startedAt(s.getStartTime())
+                                            .submittedAt(s.getSubmittedAt())
+                                            .build();
+                                })
+                                .collect(Collectors.toList());
                     }
 
                     return RoomResultResponse.ParticipantResult.builder()
                             .userId(userId.toString())
                             .studentName(p.getUser().getFullName())
-                            .status(status)
-                            .score(session != null ? session.getScore() : null)
-                            .correctCount(session != null ? session.getCorrectCount() : null)
-                            .totalQuestions(totalQuestions)
-                            .submittedAt(session != null ? session.getSubmittedAt() : null)
+                            .attempts(attempts)
                             .build();
                 })
                 .collect(Collectors.toList());
 
+        // A participant counts as "submitted" if they have at least one submitted attempt
         int submittedCount = (int) results.stream()
-                .filter(r -> "SUBMITTED".equals(r.getStatus()))
+                .filter(r -> r.getAttempts().stream()
+                        .anyMatch(a -> "SUBMITTED".equals(a.getStatus())))
                 .count();
 
         RoomResultResponse.RoomInfo roomInfo = RoomResultResponse.RoomInfo.builder()
@@ -326,9 +364,9 @@ public class ExamRoomService {
     private void validateStatusTransition(RoomStatus current, RoomStatus next) {
         boolean valid = switch (current) {
             case SCHEDULED -> next == RoomStatus.OPEN || next == RoomStatus.CLOSED;
-            case OPEN -> next == RoomStatus.CLOSED;
+            case OPEN      -> next == RoomStatus.IN_PROGRESS || next == RoomStatus.CLOSED;
             case IN_PROGRESS -> next == RoomStatus.CLOSED;
-            case CLOSED -> next == RoomStatus.OPEN;
+            case CLOSED    -> next == RoomStatus.OPEN;
         };
         if (!valid) {
             throw new BadRequestException(ResponseCode.ROOM_INVALID_STATUS_TRANSITION,

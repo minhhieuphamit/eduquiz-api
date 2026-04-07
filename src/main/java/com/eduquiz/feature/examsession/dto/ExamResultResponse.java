@@ -23,7 +23,13 @@ public class ExamResultResponse {
     private UUID examId;
     private String examTitle;
     private String subjectName;
+    private String examCreatorName;   // who created the exam
     private String studentName;
+
+    // Room context (null when session was taken without a room)
+    private String roomTitle;
+    private String roomCode;
+    private String teacherName;       // who created the room
 
     private SessionStatus status;
     private SubmissionSource submissionSource;

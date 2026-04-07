@@ -585,12 +585,20 @@ public class ExamSessionService {
                     .build());
         }
 
+        ExamRoom room = session.getRoom();
+
         return ExamResultResponse.builder()
                 .sessionId(session.getId())
                 .examId(session.getExam().getId())
                 .examTitle(session.getExam().getTitle())
                 .subjectName(session.getExam().getSubject().getName())
+                .examCreatorName(session.getExam().getCreator() != null
+                        ? session.getExam().getCreator().getFullName() : null)
                 .studentName(session.getUser().getFullName())
+                .roomTitle(room != null ? room.getTitle() : null)
+                .roomCode(room != null ? room.getRoomCode() : null)
+                .teacherName(room != null && room.getCreatedBy() != null
+                        ? room.getCreatedBy().getFullName() : null)
                 .status(session.getStatus())
                 .submissionSource(session.getSubmissionSource())
                 .score(session.getScore())
