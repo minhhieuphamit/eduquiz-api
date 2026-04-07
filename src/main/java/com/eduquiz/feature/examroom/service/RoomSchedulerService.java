@@ -40,23 +40,25 @@ public class RoomSchedulerService {
     }
 
     /**
-     * Every 30 seconds: close OPEN/IN_PROGRESS rooms whose endTime has passed.
+     * Every 30 seconds: lock OPEN rooms whose join window (endTime) has passed.
+     * Transitions OPEN → IN_PROGRESS: no new students can join, but existing
+     * participants may still take the exam. The teacher closes the room manually.
      */
     @Scheduled(fixedDelay = 30_000, initialDelay = 15_000)
     @Transactional
-    public void closeExpiredRooms() {
+    public void lockExpiredOpenRooms() {
         LocalDateTime now = LocalDateTime.now();
-        List<ExamRoom> toClose = roomRepository
+        List<ExamRoom> toLock = roomRepository
                 .findByStatusInAndEndTimeLessThanEqual(
-                        List.of(RoomStatus.OPEN, RoomStatus.IN_PROGRESS), now);
+                        List.of(RoomStatus.OPEN), now);
 
-        if (toClose.isEmpty()) return;
+        if (toLock.isEmpty()) return;
 
-        log.info("[RoomScheduler.close] Closing {} expired rooms", toClose.size());
-        for (ExamRoom room : toClose) {
-            room.setStatus(RoomStatus.CLOSED);
+        log.info("[RoomScheduler.lock] Locking {} rooms (join window closed)", toLock.size());
+        for (ExamRoom room : toLock) {
+            room.setStatus(RoomStatus.IN_PROGRESS);
             roomRepository.save(room);
-            log.info("[RoomScheduler.close] Closed room={}", room.getId());
+            log.info("[RoomScheduler.lock] Room {} → IN_PROGRESS", room.getId());
         }
     }
 }

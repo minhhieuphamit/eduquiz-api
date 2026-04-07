@@ -17,6 +17,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
 
@@ -70,7 +71,9 @@ public class ExamRoomController {
             @RequestBody Map<String, String> body,
             @AuthenticationPrincipal User currentUser) {
         String status = body.get("status");
-        return ResponseEntity.ok(roomService.updateRoomStatus(id, status, currentUser));
+        String endTimeStr = body.get("endTime");
+        LocalDateTime newEndTime = endTimeStr != null ? LocalDateTime.parse(endTimeStr) : null;
+        return ResponseEntity.ok(roomService.updateRoomStatus(id, status, newEndTime, currentUser));
     }
 
     /** GET /api/v1/rooms/{id}/results — room exam results (TEACHER) */

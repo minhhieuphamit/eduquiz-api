@@ -143,6 +143,7 @@ public enum ResponseCode {
     ROOM_FULL(5406, "Room is full"),
     ROOM_EXAM_NOT_ASSIGNED(5407, "No exam assigned to room"),
     ROOM_INVALID_STATUS_TRANSITION(5408, "Invalid room status transition"),
+    ROOM_IN_PROGRESS(5409, "Room is in progress, joining is no longer allowed"),
 
     // ══════════════════════════════════════════════════════
     // 6000–6999  Exam Session
