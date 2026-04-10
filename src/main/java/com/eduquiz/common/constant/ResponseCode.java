@@ -182,6 +182,7 @@ public enum ResponseCode {
     // 8000–8999  Statistics
     // ══════════════════════════════════════════════════════
     STATS_ADMIN_OVERVIEW_SUCCESS(8000, "Admin stats fetched successfully"),
+    LEADERBOARD_FETCH_SUCCESS(8001, "Leaderboard fetched successfully"),
 
     // ══════════════════════════════════════════════════════
     // 9000–9999  Async / Background

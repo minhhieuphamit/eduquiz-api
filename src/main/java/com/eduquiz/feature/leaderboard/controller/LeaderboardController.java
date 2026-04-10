@@ -1,5 +1,6 @@
 package com.eduquiz.feature.leaderboard.controller;
 
+import com.eduquiz.common.constant.ResponseCode;
 import com.eduquiz.common.dto.ApiResponse;
 import com.eduquiz.feature.leaderboard.dto.LeaderboardEntry;
 import com.eduquiz.feature.leaderboard.service.LeaderboardService;
@@ -30,6 +31,6 @@ public class LeaderboardController {
             @RequestParam(defaultValue = "50") int limit) {
 
         List<LeaderboardEntry> entries = leaderboardService.getLeaderboard(subjectId, Math.min(limit, 100));
-        return ApiResponse.ok(entries);
+        return ApiResponse.ok(ResponseCode.LEADERBOARD_FETCH_SUCCESS, entries);
     }
 }
