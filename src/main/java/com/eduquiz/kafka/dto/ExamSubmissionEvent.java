@@ -1,10 +1,23 @@
 package com.eduquiz.kafka.dto;
 
-/**
- * Event khi student nộp bài.
- * Fields: sessionId, userId, examId, roomId(nullable),
- * answers(List<AnswerItem>: questionId, selectedAnswer), submittedAt
- * TODO: @Data @Builder
- */
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ExamSubmissionEvent {
+
+    private UUID sessionId;
+    private UUID userId;
+    private UUID examId;
+    private UUID subjectId;
+    private UUID roomId;          // nullable (practice mode)
+    private LocalDateTime submittedAt;
 }

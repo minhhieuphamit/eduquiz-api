@@ -9,4 +9,6 @@ import java.util.List;
 @Repository
 public interface ExamQuestionRepository extends JpaRepository<ExamQuestion, ExamQuestion.ExamQuestionId> {
     List<ExamQuestion> findByExam(Exam exam);
+
+    int countByExam(Exam exam);
 }

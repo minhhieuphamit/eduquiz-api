@@ -22,6 +22,11 @@ import com.eduquiz.feature.examsession.repository.ExamSessionRepository;
 import com.eduquiz.feature.question.entity.Question;
 import com.eduquiz.feature.question.entity.QuestionOption;
 import com.eduquiz.feature.question.entity.QuestionType;
+import com.eduquiz.kafka.dto.AuditEvent;
+import com.eduquiz.kafka.dto.ExamGradedEvent;
+import com.eduquiz.kafka.dto.ExamSubmissionEvent;
+import com.eduquiz.kafka.producer.AuditEventProducer;
+import com.eduquiz.kafka.producer.ExamEventProducer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -47,6 +52,8 @@ public class ExamSessionService {
     private final ExamQuestionRepository examQuestionRepository;
     private final ExamRoomRepository roomRepository;
     private final RoomParticipantRepository participantRepository;
+    private final ExamEventProducer examEventProducer;
+    private final AuditEventProducer auditEventProducer;
 
     // ══════════════════════════════════════════════════════
     // START EXAM
@@ -90,6 +97,12 @@ public class ExamSessionService {
         session = sessionRepository.saveAndFlush(session);
 
         log.info("[ExamSession.start] Created session={}, expiresAt={}", session.getId(), expiresAt);
+
+        // Publish audit event
+        final UUID sessionId = session.getId();
+        auditEventProducer.log(currentUser.getId(), "START_EXAM", "ExamSession", sessionId,
+                Map.of("examId", exam.getId(), "roomId", room != null ? room.getId() : "practice"));
+
         return ApiResponse.ok(ResponseCode.EXAM_SESSION_STARTED, toSessionResponse(session));
     }
 
@@ -188,6 +201,10 @@ public class ExamSessionService {
 
         ExamSession submitted = doSubmit(session, SubmissionSource.MANUAL);
         log.info("[ExamSession.submit] session={}, score={}", sessionId, submitted.getScore());
+
+        // Publish Kafka events (after transaction commits)
+        publishKafkaEvents(submitted);
+
         return ApiResponse.ok(ResponseCode.EXAM_SUBMIT_SUCCESS, toResultResponse(submitted));
     }
 
@@ -247,7 +264,8 @@ public class ExamSessionService {
         log.info("[ExamSession.scheduler] Auto-submitting {} expired sessions", timedOut.size());
         for (ExamSession session : timedOut) {
             try {
-                doSubmit(session, SubmissionSource.AUTO_TIMEOUT);
+                ExamSession submitted = doSubmit(session, SubmissionSource.AUTO_TIMEOUT);
+                publishKafkaEvents(submitted);
             } catch (Exception e) {
                 log.error("[ExamSession.scheduler] Failed to auto-submit session={}: {}", session.getId(), e.getMessage());
             }
@@ -462,6 +480,53 @@ public class ExamSessionService {
         if ("ADMIN".equals(role)) return;
         if ("TEACHER".equals(role) && exam.getCreator().getId().equals(currentUser.getId())) return;
         throw new BadRequestException(ResponseCode.AUTH_FORBIDDEN);
+    }
+
+    // ══════════════════════════════════════════════════════
+    // PRIVATE: KAFKA EVENT PUBLISHING
+    // ══════════════════════════════════════════════════════
+
+    private void publishKafkaEvents(ExamSession session) {
+        try {
+            UUID subjectId = session.getExam().getSubject().getId();
+            UUID roomId    = session.getRoom() != null ? session.getRoom().getId() : null;
+            int total      = examQuestionRepository.countByExam(session.getExam());
+
+            // 1. exam-submission (for GradingConsumer audit trail)
+            examEventProducer.publishSubmission(ExamSubmissionEvent.builder()
+                    .sessionId(session.getId())
+                    .userId(session.getUser().getId())
+                    .examId(session.getExam().getId())
+                    .subjectId(subjectId)
+                    .roomId(roomId)
+                    .submittedAt(session.getSubmittedAt())
+                    .build());
+
+            // 2. exam-graded (for LeaderboardConsumer)
+            examEventProducer.publishGraded(ExamGradedEvent.builder()
+                    .sessionId(session.getId())
+                    .userId(session.getUser().getId())
+                    .examId(session.getExam().getId())
+                    .subjectId(subjectId)
+                    .roomId(roomId)
+                    .score(session.getScore())
+                    .correctCount(session.getCorrectCount())
+                    .totalQuestions(total)
+                    .gradedAt(session.getSubmittedAt())
+                    .build());
+
+            // 3. audit-event
+            auditEventProducer.log(session.getUser().getId(), "SUBMIT_EXAM",
+                    "ExamSession", session.getId(),
+                    Map.of(
+                            "examId",  session.getExam().getId(),
+                            "score",   session.getScore(),
+                            "source",  session.getSubmissionSource()
+                    ));
+        } catch (Exception e) {
+            log.error("[ExamSession.kafka] Failed to publish events for session={}: {}",
+                    session.getId(), e.getMessage());
+        }
     }
 
     // ══════════════════════════════════════════════════════

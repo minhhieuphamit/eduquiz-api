@@ -1,10 +1,27 @@
 package com.eduquiz.kafka.dto;
 
-/**
- * Event sau khi chấm bài xong.
- * Fields: sessionId, userId, examId, subjectId, roomId(nullable),
- * score, correctCount, totalQuestions, gradedAt
- * TODO: @Data @Builder
- */
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ExamGradedEvent {
+
+    private UUID sessionId;
+    private UUID userId;
+    private UUID examId;
+    private UUID subjectId;
+    private UUID roomId;          // nullable
+    private BigDecimal score;
+    private int correctCount;
+    private int totalQuestions;
+    private LocalDateTime gradedAt;
 }

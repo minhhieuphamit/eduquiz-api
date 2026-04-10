@@ -1,20 +1,44 @@
 package com.eduquiz.kafka.consumer;
 
+import com.eduquiz.kafka.dto.ExamSubmissionEvent;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
+import org.springframework.stereotype.Component;
+
 /**
- * Kafka Consumer - Chấm bài tự động.
+ * GradingConsumer lắng nghe topic "exam-submission".
  *
- * @KafkaListener(topics = "exam-submission", groupId = "eduquiz-grading")
- * <p>
- * Flow:
- * 1. Nhận ExamSubmissionEvent
- * 2. Query đáp án đúng từ DB
- * 3. So sánh, tính điểm
- * 4. Update exam_session (score, correctCount, status=GRADED)
- * 5. Update exam_answers (isCorrect)
- * 6. Publish ExamGradedEvent
- * <p>
- * Error handling: @RetryableTopic cho retry, DLT cho dead letter
- * TODO: Implement
+ * Lưu ý kiến trúc hiện tại: ExamSessionService thực hiện chấm bài đồng bộ (sync)
+ * ngay khi student submit, rồi publish ExamGradedEvent trực tiếp.
+ * Consumer này dùng để log audit trail và mở rộng sang async grading sau này.
  */
+@Component
+@RequiredArgsConstructor
+@Slf4j
 public class GradingConsumer {
+
+    private final ObjectMapper objectMapper;
+
+    @KafkaListener(
+            topics = "exam-submission",
+            groupId = "eduquiz-grading",
+            containerFactory = "kafkaListenerContainerFactory"
+    )
+    public void consume(ConsumerRecord<String, Object> record, Acknowledgment ack) {
+        try {
+            ExamSubmissionEvent event = objectMapper.convertValue(record.value(), ExamSubmissionEvent.class);
+            log.info("[GradingConsumer] Received submission: sessionId={}, userId={}, examId={}",
+                    event.getSessionId(), event.getUserId(), event.getExamId());
+            // Grading đã được xử lý sync trong ExamSessionService.doSubmit().
+            // Consumer này chỉ ghi log — dùng cho audit trail và future async grading.
+            ack.acknowledge();
+        } catch (Exception e) {
+            log.error("[GradingConsumer] Failed to process record: {}", e.getMessage(), e);
+            ack.acknowledge(); // ack để tránh requeue vô hạn
+        }
+    }
 }

@@ -16,6 +16,7 @@ import com.eduquiz.feature.auth.repository.RefreshTokenRepository;
 import com.eduquiz.feature.auth.repository.RoleRepository;
 import com.eduquiz.feature.auth.repository.UserRepository;
 import com.eduquiz.feature.email.service.EmailService;
+import com.eduquiz.kafka.producer.AuditEventProducer;
 import com.eduquiz.security.jwt.JwtUtil;
 import com.eduquiz.feature.auth.entity.Role;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -33,6 +34,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -49,6 +51,7 @@ public class AuthService {
     private final JwtUtil jwtUtil;
     private final PasswordEncoder passwordEncoder;
     private final OtpGenerator otpGenerator;
+    private final AuditEventProducer auditEventProducer;
 
     @Autowired
     @Lazy
@@ -117,6 +120,8 @@ public class AuthService {
                 "/auth/verify-otp?email=" + user.getEmail());
 
         log.info("[AuthService.register] SUCCESS - email={}, userId={}", user.getEmail(), user.getId());
+        auditEventProducer.log(user.getId(), "REGISTER", "User", user.getId(),
+                Map.of("email", user.getEmail(), "role", request.getRole()));
         return ApiResponse.ok(ResponseCode.AUTH_REGISTER_SUCCESS);
     }
 
@@ -271,6 +276,8 @@ public class AuthService {
                 .build();
 
         log.info("[AuthService.login] SUCCESS - email={}, userId={}", request.getEmail(), user.getId());
+        auditEventProducer.log(user.getId(), "LOGIN", "User", user.getId(),
+                Map.of("email", user.getEmail(), "role", user.getRole().getName()));
         return ApiResponse.ok(ResponseCode.AUTH_LOGIN_SUCCESS, authResponse);
     }
 
